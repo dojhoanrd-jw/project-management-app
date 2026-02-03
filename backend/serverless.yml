@@ -53,6 +53,20 @@ functions:
           path: /projects
           method: GET
 
+  createTask:
+    handler: src/tasks/handler.create
+    events:
+      - httpApi:
+          path: /tasks
+          method: POST
+
+  listTasks:
+    handler: src/tasks/handler.list
+    events:
+      - httpApi:
+          path: /tasks
+          method: GET
+
 plugins:
   - serverless-offline
 
