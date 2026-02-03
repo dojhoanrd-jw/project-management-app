@@ -66,19 +66,35 @@ const create = async (event) => {
 const list = async (event) => {
   try {
     const { userId } = event.user;
+    const params = event.queryStringParameters || {};
+    const limit = Math.min(parseInt(params.limit) || 20, 100);
 
-    const { Items = [] } = await docClient.send(
-      new QueryCommand({
-        TableName: TABLE_NAME,
-        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-        ExpressionAttributeValues: {
-          ':pk': userId,
-          ':sk': 'TASK#',
-        },
-      })
+    const queryParams = {
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': userId,
+        ':sk': 'TASK#',
+      },
+      Limit: limit,
+    };
+
+    if (params.nextKey) {
+      queryParams.ExclusiveStartKey = JSON.parse(
+        Buffer.from(params.nextKey, 'base64').toString()
+      );
+    }
+
+    const { Items = [], LastEvaluatedKey } = await docClient.send(
+      new QueryCommand(queryParams)
     );
 
-    return success({ tasks: Items });
+    const response = { tasks: Items };
+    if (LastEvaluatedKey) {
+      response.nextKey = Buffer.from(JSON.stringify(LastEvaluatedKey)).toString('base64');
+    }
+
+    return success(response);
   } catch (err) {
     if (err instanceof AppError) {
       return error(err.message, err.statusCode);
