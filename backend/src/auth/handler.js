@@ -3,10 +3,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { docClient, TABLE_NAME } = require('../shared/dynamo');
 const { success, error } = require('../shared/response');
-const { AppError } = require('../shared/errors');
+const { AppError, UnauthorizedError, ValidationError } = require('../shared/errors');
 const { loginSchema } = require('./validator');
 
 const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is required');
 const JWT_EXPIRES_IN = '24h';
 
 const findUserByEmail = async (email) => {
@@ -32,20 +33,19 @@ const login = async (event) => {
 
     const result = loginSchema.safeParse(body);
     if (!result.success) {
-      const message = result.error.issues[0]?.message || 'Invalid data';
-      return error(message, 400);
+      throw new ValidationError(result.error.issues[0]?.message || 'Invalid data');
     }
 
     const { email, password } = result.data;
 
     const user = await findUserByEmail(email);
     if (!user) {
-      return error('Invalid credentials', 401);
+      throw new UnauthorizedError();
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return error('Invalid credentials', 401);
+      throw new UnauthorizedError();
     }
 
     const token = generateToken(user);

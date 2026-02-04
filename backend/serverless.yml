@@ -30,8 +30,9 @@ provider:
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
             - dynamodb:Query
-          Resource: 
+          Resource:
             - "arn:aws:dynamodb:${aws:region}:*:table/AppData"
+            - "arn:aws:dynamodb:${aws:region}:*:table/AppData/index/*"
 
 functions:
   login:
@@ -55,6 +56,20 @@ functions:
           path: /projects
           method: GET
 
+  updateProject:
+    handler: src/projects/handler.update
+    events:
+      - httpApi:
+          path: /projects/{projectId}
+          method: PUT
+
+  deleteProject:
+    handler: src/projects/handler.remove
+    events:
+      - httpApi:
+          path: /projects/{projectId}
+          method: DELETE
+
   createTask:
     handler: src/tasks/handler.create
     events:
@@ -67,6 +82,34 @@ functions:
     events:
       - httpApi:
           path: /tasks
+          method: GET
+
+  updateTask:
+    handler: src/tasks/handler.update
+    events:
+      - httpApi:
+          path: /tasks/{taskId}
+          method: PUT
+
+  deleteTask:
+    handler: src/tasks/handler.remove
+    events:
+      - httpApi:
+          path: /tasks/{taskId}
+          method: DELETE
+
+  myTasks:
+    handler: src/tasks/handler.myTasks
+    events:
+      - httpApi:
+          path: /tasks/me
+          method: GET
+
+  dashboardMetrics:
+    handler: src/dashboard/handler.metrics
+    events:
+      - httpApi:
+          path: /dashboard/metrics
           method: GET
 
 plugins:
@@ -83,9 +126,22 @@ resources:
             AttributeType: S
           - AttributeName: SK
             AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
         KeySchema:
           - AttributeName: PK
             KeyType: HASH
           - AttributeName: SK
             KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
