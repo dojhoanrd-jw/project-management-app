@@ -2,9 +2,9 @@
 
 :root {
   /* Base */
-  --color-bg: #f5f5f0;
-  --color-surface: #ffffff;
-  --color-surface-hover: #fafaf8;
+  --color-bg: #ebdfd7;
+  --color-surface: #f3eae4;
+  --color-surface-hover: #efe3db;
 
   /* Text */
   --color-text-primary: #171717;
@@ -27,14 +27,14 @@
   --color-border-light: #f0f0eb;
 
   /* Status */
-  --color-status-completed: #22c55e;
-  --color-status-completed-bg: #f0fdf4;
-  --color-status-ongoing: #3b82f6;
-  --color-status-ongoing-bg: #eff6ff;
-  --color-status-at-risk: #eab308;
-  --color-status-at-risk-bg: #fefce8;
-  --color-status-delayed: #ef4444;
-  --color-status-delayed-bg: #fef2f2;
+  --color-status-completed: #3a9a5c;
+  --color-status-completed-bg: #ddf2e1;
+  --color-status-ongoing: #c4652a;
+  --color-status-ongoing-bg: #f5e0d0;
+  --color-status-at-risk: #dc2626;
+  --color-status-at-risk-bg: #fce0e0;
+  --color-status-delayed: #b59a1a;
+  --color-status-delayed-bg: #f5efcf;
   --color-status-review: #a855f7;
   --color-status-review-bg: #faf5ff;
 }

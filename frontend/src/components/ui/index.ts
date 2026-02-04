@@ -5,3 +5,6 @@ export { default as Badge } from './Badge';
 export { default as Alert } from './Alert';
 export type { AlertType, AlertProps } from './Alert';
 export { default as IconButton } from './IconButton';
+export { default as MetricCard } from './MetricCard';
+export { default as StatusBadge } from './StatusBadge';
+export { default as ProgressCircle } from './ProgressCircle';

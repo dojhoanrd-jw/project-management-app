@@ -105,11 +105,39 @@ functions:
           path: /tasks/me
           method: GET
 
-  dashboardMetrics:
-    handler: src/dashboard/handler.metrics
+  dashboardOverview:
+    handler: src/dashboard/overviewHandler.overview
     events:
       - httpApi:
-          path: /dashboard/metrics
+          path: /dashboard/overview
+          method: GET
+
+  dashboardProgress:
+    handler: src/dashboard/progressHandler.progress
+    events:
+      - httpApi:
+          path: /dashboard/progress
+          method: GET
+
+  dashboardProjectsSummary:
+    handler: src/dashboard/projectsSummaryHandler.projectsSummary
+    events:
+      - httpApi:
+          path: /dashboard/projects-summary
+          method: GET
+
+  dashboardTodayTasks:
+    handler: src/dashboard/todayTasksHandler.todayTasks
+    events:
+      - httpApi:
+          path: /dashboard/today-tasks
+          method: GET
+
+  dashboardWorkload:
+    handler: src/dashboard/workloadHandler.workload
+    events:
+      - httpApi:
+          path: /dashboard/workload
           method: GET
 
 plugins:

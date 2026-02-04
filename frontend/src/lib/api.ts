@@ -57,6 +57,14 @@ async function request<T = unknown>(path: string, options: RequestInit = {}): Pr
   return data as T;
 }
 
+import type {
+  OverviewResponse,
+  ProgressResponse,
+  ProjectsSummaryResponse,
+  TodayTasksResponse,
+  WorkloadResponse,
+} from '@/features/dashboard/dashboard.types';
+
 interface LoginResponse {
   token: string;
   user: { id: string; name: string; email: string; role: string };
@@ -70,8 +78,28 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
 
-  getDashboard: (period = '1month') =>
-    request(`/dashboard/metrics?period=${period}`, {
+  getDashboardOverview: (period = '1month') =>
+    request<OverviewResponse>(`/dashboard/overview?period=${period}`, {
+      headers: buildHeaders(),
+    }),
+
+  getDashboardProgress: () =>
+    request<ProgressResponse>('/dashboard/progress', {
+      headers: buildHeaders(),
+    }),
+
+  getDashboardProjectsSummary: () =>
+    request<ProjectsSummaryResponse>('/dashboard/projects-summary', {
+      headers: buildHeaders(),
+    }),
+
+  getDashboardTodayTasks: () =>
+    request<TodayTasksResponse>('/dashboard/today-tasks', {
+      headers: buildHeaders(),
+    }),
+
+  getDashboardWorkload: (period = '1month') =>
+    request<WorkloadResponse>(`/dashboard/workload?period=${period}`, {
       headers: buildHeaders(),
     }),
 
