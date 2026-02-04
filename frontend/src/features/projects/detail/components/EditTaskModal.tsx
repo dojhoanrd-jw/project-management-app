@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, type Task, type TeamUser } from '@/lib/api';
+import { api, type Task, type ProjectMember } from '@/lib/api';
 import { ApiError, NetworkError } from '@/lib/errors';
 import { useAlerts } from '@/context/AlertContext';
 import { Button, Input } from '@/components/ui';
@@ -9,9 +9,11 @@ import Modal from '@/components/ui/Modal';
 
 interface EditTaskModalProps {
   task: Task;
+  members: ProjectMember[];
   isOpen: boolean;
   onClose: () => void;
   onUpdated: () => void;
+  userRole?: string;
 }
 
 interface FormData {
@@ -26,7 +28,7 @@ interface FormData {
   dueDate: string;
 }
 
-export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: EditTaskModalProps) {
+export default function EditTaskModal({ task, members, isOpen, onClose, onUpdated, userRole }: EditTaskModalProps) {
   const { showSuccess, showError } = useAlerts();
   const [form, setForm] = useState<FormData>({
     title: '', description: '', status: '', priority: '', category: '',
@@ -34,8 +36,6 @@ export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: Edit
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState<TeamUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -51,18 +51,6 @@ export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: Edit
       dueDate: task.dueDate,
     });
     setErrors({});
-    let cancelled = false;
-    async function fetchUsers() {
-      setLoadingUsers(true);
-      try {
-        const data = await api.getAllUsers();
-        if (!cancelled) setUsers(data.users);
-      } catch { /* silent */ } finally {
-        if (!cancelled) setLoadingUsers(false);
-      }
-    }
-    fetchUsers();
-    return () => { cancelled = true; };
   }, [isOpen, task]);
 
   const update = (field: keyof FormData, value: string) => {
@@ -71,8 +59,8 @@ export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: Edit
   };
 
   const handleAssigneeChange = (email: string) => {
-    const user = users.find((u) => u.email === email);
-    setForm((prev) => ({ ...prev, assigneeId: email, assigneeName: user?.name || '' }));
+    const member = members.find((m) => m.email === email);
+    setForm((prev) => ({ ...prev, assigneeId: email, assigneeName: member?.name || '' }));
     if (errors.assigneeId) setErrors((prev) => ({ ...prev, assigneeId: undefined }));
   };
 
@@ -93,6 +81,7 @@ export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: Edit
     setLoading(true);
     try {
       await api.updateTask(task.taskId, {
+        projectId: task.projectId,
         title: form.title.trim(),
         description: form.description.trim(),
         status: form.status,
@@ -153,7 +142,9 @@ export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: Edit
               <option value="in_progress">In Progress</option>
               <option value="in_review">In Review</option>
               <option value="completed">Completed</option>
-              <option value="approved">Approved</option>
+              {(userRole === 'owner' || userRole === 'project_manager') && (
+                <option value="approved">Approved</option>
+              )}
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -182,12 +173,11 @@ export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: Edit
               id="edit-task-assignee"
               value={form.assigneeId}
               onChange={(e) => handleAssigneeChange(e.target.value)}
-              disabled={loadingUsers}
               className={`${selectClasses} ${errors.assigneeId ? 'border-status-delayed' : 'border-border'}`}
             >
-              <option value="">{loadingUsers ? 'Loading...' : 'Select assignee'}</option>
-              {users.map((u) => (
-                <option key={u.email} value={u.email}>{u.name}</option>
+              <option value="">Select assignee</option>
+              {members.map((m) => (
+                <option key={m.email} value={m.email}>{m.name}</option>
               ))}
             </select>
             {errors.assigneeId && <p className="text-xs text-status-delayed">{errors.assigneeId}</p>}

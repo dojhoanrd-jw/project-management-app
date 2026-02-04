@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, type TeamUser } from '@/lib/api';
+import { api, type ProjectMember } from '@/lib/api';
 import { ApiError, NetworkError } from '@/lib/errors';
 import { useAlerts } from '@/context/AlertContext';
 import { Button, Input } from '@/components/ui';
@@ -9,6 +9,7 @@ import Modal from '@/components/ui/Modal';
 
 interface CreateTaskModalProps {
   projectId: string;
+  members: ProjectMember[];
   isOpen: boolean;
   onClose: () => void;
   onCreated: () => void;
@@ -38,30 +39,16 @@ const INITIAL: FormData = {
   dueDate: '',
 };
 
-export default function CreateTaskModal({ projectId, isOpen, onClose, onCreated }: CreateTaskModalProps) {
+export default function CreateTaskModal({ projectId, members, isOpen, onClose, onCreated }: CreateTaskModalProps) {
   const { showSuccess, showError } = useAlerts();
   const [form, setForm] = useState<FormData>(INITIAL);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState<TeamUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     setForm(INITIAL);
     setErrors({});
-    let cancelled = false;
-    async function fetchUsers() {
-      setLoadingUsers(true);
-      try {
-        const data = await api.getAllUsers();
-        if (!cancelled) setUsers(data.users);
-      } catch { /* silent */ } finally {
-        if (!cancelled) setLoadingUsers(false);
-      }
-    }
-    fetchUsers();
-    return () => { cancelled = true; };
   }, [isOpen]);
 
   const update = (field: keyof FormData, value: string) => {
@@ -70,8 +57,8 @@ export default function CreateTaskModal({ projectId, isOpen, onClose, onCreated 
   };
 
   const handleAssigneeChange = (email: string) => {
-    const user = users.find((u) => u.email === email);
-    setForm((prev) => ({ ...prev, assigneeId: email, assigneeName: user?.name || '' }));
+    const member = members.find((m) => m.email === email);
+    setForm((prev) => ({ ...prev, assigneeId: email, assigneeName: member?.name || '' }));
     if (errors.assigneeId) setErrors((prev) => ({ ...prev, assigneeId: undefined }));
   };
 
@@ -80,7 +67,12 @@ export default function CreateTaskModal({ projectId, isOpen, onClose, onCreated 
     if (!form.title.trim()) e.title = 'Title is required';
     if (!form.assigneeId) e.assigneeId = 'Assignee is required';
     if (!form.estimatedHours || Number(form.estimatedHours) < 0.5) e.estimatedHours = 'Min 0.5 hours';
-    if (!form.dueDate) e.dueDate = 'Due date is required';
+    if (!form.dueDate) {
+      e.dueDate = 'Due date is required';
+    } else {
+      const today = new Date().toISOString().split('T')[0];
+      if (form.dueDate < today) e.dueDate = 'Due date cannot be in the past';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -181,12 +173,11 @@ export default function CreateTaskModal({ projectId, isOpen, onClose, onCreated 
               id="task-assignee"
               value={form.assigneeId}
               onChange={(e) => handleAssigneeChange(e.target.value)}
-              disabled={loadingUsers}
               className={`${selectClasses} ${errors.assigneeId ? 'border-status-delayed' : 'border-border'}`}
             >
-              <option value="">{loadingUsers ? 'Loading...' : 'Select assignee'}</option>
-              {users.map((u) => (
-                <option key={u.email} value={u.email}>{u.name}</option>
+              <option value="">Select assignee</option>
+              {members.map((m) => (
+                <option key={m.email} value={m.email}>{m.name}</option>
               ))}
             </select>
             {errors.assigneeId && <p className="text-xs text-status-delayed">{errors.assigneeId}</p>}
@@ -208,6 +199,7 @@ export default function CreateTaskModal({ projectId, isOpen, onClose, onCreated 
           id="task-due"
           label="Due Date"
           type="date"
+          min={new Date().toISOString().split('T')[0]}
           value={form.dueDate}
           onChange={(e) => update('dueDate', e.target.value)}
           error={errors.dueDate}

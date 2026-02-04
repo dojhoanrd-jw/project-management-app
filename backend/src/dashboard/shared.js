@@ -1,5 +1,8 @@
-const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-const { docClient, TABLE_NAME } = require('../shared/dynamo');
+const {
+  fetchUserProjectIds,
+  batchGetProjects,
+  fetchProjectItems,
+} = require('../shared/membership');
 
 const HOURS_PER_MONTH = 160;
 
@@ -40,29 +43,26 @@ const getDateRange = (period) => {
   };
 };
 
-const fetchAllItems = async (userId, skPrefix) => {
-  const items = [];
-  let lastKey;
+/**
+ * Fetch all projects the user is a member of.
+ */
+const fetchAllUserProjects = async (email) => {
+  const projectIds = await fetchUserProjectIds(email);
+  if (projectIds.length === 0) return [];
+  return batchGetProjects(projectIds);
+};
 
-  do {
-    const params = {
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-      ExpressionAttributeValues: {
-        ':pk': userId,
-        ':sk': skPrefix,
-      },
-    };
-    if (lastKey) params.ExclusiveStartKey = lastKey;
+/**
+ * Fetch all tasks across all projects the user is a member of.
+ */
+const fetchAllUserTasks = async (email) => {
+  const projectIds = await fetchUserProjectIds(email);
+  if (projectIds.length === 0) return [];
 
-    const { Items = [], LastEvaluatedKey } = await docClient.send(
-      new QueryCommand(params),
-    );
-    items.push(...Items);
-    lastKey = LastEvaluatedKey;
-  } while (lastKey);
-
-  return items;
+  const tasksByProject = await Promise.all(
+    projectIds.map((id) => fetchProjectItems(id, 'TASK#')),
+  );
+  return tasksByProject.flat();
 };
 
 const filterByPeriod = (items, start) => {
@@ -120,7 +120,8 @@ module.exports = {
   HOURS_PER_MONTH,
   PERIOD_MAP,
   getDateRange,
-  fetchAllItems,
+  fetchAllUserProjects,
+  fetchAllUserTasks,
   filterByPeriod,
   parsePeriod,
   STATUS_WEIGHT,

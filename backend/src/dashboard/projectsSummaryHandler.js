@@ -1,13 +1,13 @@
 const { success, withErrorHandler } = require('../shared/response');
 const { withAuth } = require('../auth/middleware');
-const { fetchAllItems, calcWeightedProgress, calcProjectHealth } = require('./shared');
+const { fetchAllUserProjects, fetchAllUserTasks, calcWeightedProgress, calcProjectHealth } = require('./shared');
 
 const projectsSummary = async (event) => {
-  const { userId } = event.user;
+  const { email } = event.user;
 
   const [projects, allTasks] = await Promise.all([
-    fetchAllItems(userId, 'PROJECT#'),
-    fetchAllItems(userId, 'TASK#'),
+    fetchAllUserProjects(email),
+    fetchAllUserTasks(email),
   ]);
 
   const summary = projects.map((project) => {

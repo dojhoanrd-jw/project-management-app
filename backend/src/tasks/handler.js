@@ -4,16 +4,41 @@ const { docClient, TABLE_NAME } = require('../shared/dynamo');
 const { success, withErrorHandler, parseBody } = require('../shared/response');
 const { NotFoundError, ValidationError } = require('../shared/errors');
 const { withAuth } = require('../auth/middleware');
+const { requireProjectRole } = require('../shared/authorization');
 const { createTaskSchema, updateTaskSchema } = require('./validator');
+const {
+  fetchUserProjectIds,
+  verifyMembership,
+  fetchProjectItems,
+  fetchProjectMeta,
+} = require('../shared/membership');
 
-const verifyProjectExists = async (userId, projectId) => {
-  const { Item } = await docClient.send(
-    new GetCommand({
-      TableName: TABLE_NAME,
-      Key: { PK: userId, SK: `PROJECT#${projectId}` },
-    })
-  );
-  return Item || null;
+const updateProjectStatusIfNeeded = async (projectId) => {
+  const tasks = await fetchProjectItems(projectId, 'TASK#');
+  if (tasks.length === 0) return;
+
+  const allDone = tasks.every((t) => t.status === 'completed' || t.status === 'approved');
+  const project = await fetchProjectMeta(projectId);
+  if (!project) return;
+
+  let newStatus = null;
+  if (allDone && project.status !== 'completed') {
+    newStatus = 'completed';
+  } else if (!allDone && project.status === 'completed') {
+    newStatus = 'active';
+  }
+
+  if (newStatus) {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { PK: `PROJECT#${projectId}`, SK: 'META' },
+        UpdateExpression: 'SET #status = :status, #updatedAt = :updatedAt',
+        ExpressionAttributeNames: { '#status': 'status', '#updatedAt': 'updatedAt' },
+        ExpressionAttributeValues: { ':status': newStatus, ':updatedAt': new Date().toISOString() },
+      }),
+    );
+  }
 };
 
 const create = async (event) => {
@@ -28,9 +53,15 @@ const create = async (event) => {
     title, description, projectId, status, priority,
     category, assigneeId, assigneeName, estimatedHours, dueDate,
   } = result.data;
-  const { userId } = event.user;
+  const { email } = event.user;
 
-  const project = await verifyProjectExists(userId, projectId);
+  // Verify caller is a member of the project
+  await verifyMembership(email, projectId);
+
+  // Verify assignee is also a project member
+  await verifyMembership(assigneeId, projectId);
+
+  const project = await fetchProjectMeta(projectId);
   if (!project) {
     throw new NotFoundError('Project not found');
   }
@@ -38,7 +69,7 @@ const create = async (event) => {
   const taskId = crypto.randomUUID();
 
   const task = {
-    PK: userId,
+    PK: `PROJECT#${projectId}`,
     SK: `TASK#${taskId}`,
     GSI1PK: `ASSIGNEE#${assigneeId}`,
     GSI1SK: `TASK#${taskId}`,
@@ -59,14 +90,16 @@ const create = async (event) => {
   };
 
   await docClient.send(
-    new PutCommand({ TableName: TABLE_NAME, Item: task })
+    new PutCommand({ TableName: TABLE_NAME, Item: task }),
   );
+
+  await updateProjectStatusIfNeeded(projectId);
 
   return success({ task }, 201);
 };
 
 const update = async (event) => {
-  const { userId } = event.user;
+  const { email } = event.user;
   const { taskId } = event.pathParameters || {};
 
   if (!taskId) {
@@ -79,7 +112,25 @@ const update = async (event) => {
     throw new ValidationError(result.error.issues[0]?.message || 'Invalid data');
   }
 
+  // projectId must be provided in body so we know which partition to update
+  const projectId = body.projectId;
+  if (!projectId) {
+    throw new ValidationError('Project ID is required');
+  }
+
+  const callerMembership = await verifyMembership(email, projectId);
+
   const fields = result.data;
+
+  // Verify new assignee is a project member if changed
+  if (fields.assigneeId) {
+    await verifyMembership(fields.assigneeId, projectId);
+  }
+
+  // Only owner/project_manager can approve tasks
+  if (fields.status === 'approved') {
+    requireProjectRole(callerMembership.memberRole, ['owner', 'project_manager']);
+  }
   const keys = Object.keys(fields);
 
   if (keys.length === 0) {
@@ -103,81 +154,83 @@ const update = async (event) => {
   const { Attributes } = await docClient.send(
     new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: { PK: userId, SK: `TASK#${taskId}` },
+      Key: { PK: `PROJECT#${projectId}`, SK: `TASK#${taskId}` },
       UpdateExpression: `SET ${expressionParts.join(', ')}`,
       ExpressionAttributeNames: exprNames,
       ExpressionAttributeValues: exprValues,
       ConditionExpression: 'attribute_exists(PK)',
       ReturnValues: 'ALL_NEW',
-    })
+    }),
   );
+
+  await updateProjectStatusIfNeeded(projectId);
 
   return success({ task: Attributes });
 };
 
 const remove = async (event) => {
-  const { userId } = event.user;
+  const { email } = event.user;
   const { taskId } = event.pathParameters || {};
 
   if (!taskId) {
     throw new ValidationError('Task ID is required');
   }
 
+  // projectId passed as query parameter
+  const params = event.queryStringParameters || {};
+  const projectId = params.projectId;
+
+  if (!projectId) {
+    throw new ValidationError('Project ID is required');
+  }
+
+  await verifyMembership(email, projectId);
+
   await docClient.send(
     new DeleteCommand({
       TableName: TABLE_NAME,
-      Key: { PK: userId, SK: `TASK#${taskId}` },
+      Key: { PK: `PROJECT#${projectId}`, SK: `TASK#${taskId}` },
       ConditionExpression: 'attribute_exists(PK)',
-    })
+    }),
   );
 
   return success({ message: 'Task deleted' });
 };
 
 const list = async (event) => {
-  const { userId } = event.user;
+  const { email } = event.user;
   const params = event.queryStringParameters || {};
-  const limit = Math.min(parseInt(params.limit) || 20, 100);
 
-  const queryParams = {
-    TableName: TABLE_NAME,
-    KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-    ExpressionAttributeValues: {
-      ':pk': userId,
-      ':sk': 'TASK#',
-    },
-    Limit: limit,
-  };
+  // Get all projects the user is a member of
+  const projectIds = await fetchUserProjectIds(email);
 
-  if (params.status) {
-    queryParams.FilterExpression = '#status = :status';
-    queryParams.ExpressionAttributeNames = { '#status': 'status' };
-    queryParams.ExpressionAttributeValues[':status'] = params.status;
+  if (projectIds.length === 0) {
+    return success({ tasks: [] });
   }
 
-  if (params.nextKey) {
-    queryParams.ExclusiveStartKey = JSON.parse(
-      Buffer.from(params.nextKey, 'base64').toString()
-    );
-  }
-
-  const { Items = [], LastEvaluatedKey } = await docClient.send(
-    new QueryCommand(queryParams)
+  // Fetch tasks from all projects in parallel
+  const tasksByProject = await Promise.all(
+    projectIds.map((id) => fetchProjectItems(id, 'TASK#')),
   );
 
-  const response = { tasks: Items };
-  if (LastEvaluatedKey) {
-    response.nextKey = Buffer.from(JSON.stringify(LastEvaluatedKey)).toString('base64');
+  let tasks = tasksByProject.flat();
+
+  // Optional status filter
+  if (params.status) {
+    tasks = tasks.filter((t) => t.status === params.status);
   }
 
-  return success(response);
+  return success({ tasks });
 };
 
 const myTasks = async (event) => {
   const { email } = event.user;
 
-  const { Items = [] } = await docClient.send(
-    new QueryCommand({
+  const items = [];
+  let lastKey;
+
+  do {
+    const params = {
       TableName: TABLE_NAME,
       IndexName: 'GSI1',
       KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
@@ -185,10 +238,17 @@ const myTasks = async (event) => {
         ':pk': `ASSIGNEE#${email}`,
         ':sk': 'TASK#',
       },
-    })
-  );
+    };
+    if (lastKey) params.ExclusiveStartKey = lastKey;
 
-  return success({ tasks: Items });
+    const { Items = [], LastEvaluatedKey } = await docClient.send(
+      new QueryCommand(params),
+    );
+    items.push(...Items);
+    lastKey = LastEvaluatedKey;
+  } while (lastKey);
+
+  return success({ tasks: items });
 };
 
 module.exports = {

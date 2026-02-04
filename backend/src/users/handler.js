@@ -4,6 +4,7 @@ const { docClient, TABLE_NAME } = require('../shared/dynamo');
 const { success, withErrorHandler, parseBody } = require('../shared/response');
 const { ValidationError } = require('../shared/errors');
 const { withAuth } = require('../auth/middleware');
+const { requireAdmin } = require('../shared/authorization');
 const { createUserSchema, updateUserSchema } = require('./validator');
 
 const list = async (event) => {
@@ -38,6 +39,7 @@ const list = async (event) => {
 };
 
 const create = async (event) => {
+  await requireAdmin(event.user.email);
   const body = parseBody(event);
 
   const result = createUserSchema.safeParse(body);
@@ -82,6 +84,7 @@ const create = async (event) => {
 };
 
 const update = async (event) => {
+  await requireAdmin(event.user.email);
   const { email } = event.pathParameters || {};
 
   if (!email) {
@@ -131,6 +134,7 @@ const update = async (event) => {
 };
 
 const remove = async (event) => {
+  await requireAdmin(event.user.email);
   const { email } = event.pathParameters || {};
 
   if (!email) {
@@ -138,6 +142,10 @@ const remove = async (event) => {
   }
 
   const decodedEmail = decodeURIComponent(email);
+
+  if (decodedEmail === event.user.email) {
+    throw new ValidationError('Cannot delete your own account');
+  }
 
   await docClient.send(
     new DeleteCommand({

@@ -1,16 +1,15 @@
 const { success, withErrorHandler } = require('../shared/response');
 const { withAuth } = require('../auth/middleware');
-const { fetchAllItems, filterByPeriod, getDateRange, parsePeriod } = require('./shared');
+const { fetchAllUserTasks, filterByPeriod, getDateRange, parsePeriod } = require('./shared');
 
 const workload = async (event) => {
-  const { userId } = event.user;
+  const { email } = event.user;
   const period = parsePeriod(event.queryStringParameters);
   const dateRange = getDateRange(period);
 
-  const allTasks = await fetchAllItems(userId, 'TASK#');
+  const allTasks = await fetchAllUserTasks(email);
   const filteredTasks = filterByPeriod(allTasks, dateRange.start);
 
-  // Aggregate totals per member (business logic stays in backend)
   const memberTotals = {};
 
   for (const task of filteredTasks) {

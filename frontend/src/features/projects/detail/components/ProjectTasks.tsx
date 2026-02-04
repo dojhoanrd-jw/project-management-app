@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { Task } from '@/lib/api';
+import type { Task, ProjectMember } from '@/lib/api';
 import { Card, Button, StatusBadge } from '@/components/ui';
 import CreateTaskModal from './CreateTaskModal';
 import EditTaskModal from './EditTaskModal';
@@ -10,7 +10,9 @@ import DeleteTaskModal from './DeleteTaskModal';
 interface ProjectTasksProps {
   projectId: string;
   tasks: Task[];
+  members: ProjectMember[];
   onTaskChanged: () => void;
+  userRole?: string;
 }
 
 const PRIORITY_STYLES: Record<string, string> = {
@@ -45,7 +47,7 @@ const PRIORITY_OPTIONS = [
   { key: 'low', label: 'Low' },
 ];
 
-export default function ProjectTasks({ projectId, tasks, onTaskChanged }: ProjectTasksProps) {
+export default function ProjectTasks({ projectId, tasks, members, onTaskChanged, userRole }: ProjectTasksProps) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [createOpen, setCreateOpen] = useState(false);
@@ -191,6 +193,7 @@ export default function ProjectTasks({ projectId, tasks, onTaskChanged }: Projec
 
       <CreateTaskModal
         projectId={projectId}
+        members={members}
         isOpen={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={onTaskChanged}
@@ -199,9 +202,11 @@ export default function ProjectTasks({ projectId, tasks, onTaskChanged }: Projec
       {editingTask && (
         <EditTaskModal
           task={editingTask}
+          members={members}
           isOpen={!!editingTask}
           onClose={() => setEditingTask(null)}
           onUpdated={onTaskChanged}
+          userRole={userRole}
         />
       )}
 

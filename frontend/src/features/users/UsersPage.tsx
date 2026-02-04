@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type TeamUser } from '@/lib/api';
 import { ApiError, NetworkError } from '@/lib/errors';
 import { useAlerts } from '@/context/AlertContext';
+import { getCurrentUser } from '@/lib/auth';
 import { Card, Button, Input } from '@/components/ui';
 import Modal from '@/components/ui/Modal';
 
@@ -187,6 +188,8 @@ function UserFormModal({
 
 export default function UsersPage() {
   const { showSuccess, showError } = useAlerts();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState('all');
@@ -196,6 +199,12 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<TeamUser | null>(null);
   const [deletingUser, setDeletingUser] = useState<TeamUser | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  useEffect(() => {
+    const user = getCurrentUser();
+    setIsAdmin(user?.role === 'admin');
+    setAuthChecked(true);
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -239,6 +248,26 @@ export default function UsersPage() {
   };
 
   const selectClasses = 'rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-accent cursor-pointer';
+
+  if (!authChecked) {
+    return (
+      <div className="flex justify-center py-16">
+        <svg className="h-8 w-8 animate-spin text-accent" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <Card className="py-10 text-center">
+        <p className="text-lg font-medium text-text-primary">Access Denied</p>
+        <p className="mt-2 text-sm text-text-secondary">You need administrator privileges to access this page.</p>
+      </Card>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

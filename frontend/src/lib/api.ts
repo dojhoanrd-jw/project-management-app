@@ -90,6 +90,7 @@ export interface Project {
   completionPercent: number;
   totalHours: number;
   members?: ProjectMember[];
+  currentUserRole?: string;
   createdAt: string;
 }
 
@@ -218,7 +219,7 @@ export const api = {
     ),
 
   getTasks: () =>
-    request<{ tasks: Task[] }>('/tasks?limit=100', { headers: buildHeaders() }),
+    request<{ tasks: Task[] }>('/tasks', { headers: buildHeaders() }),
 
   getMyTasks: () =>
     request('/tasks/me', { headers: buildHeaders() }),
@@ -237,8 +238,8 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  deleteTask: (taskId: string) =>
-    request<{ message: string }>(`/tasks/${taskId}`, {
+  deleteTask: (taskId: string, projectId: string) =>
+    request<{ message: string }>(`/tasks/${taskId}?projectId=${encodeURIComponent(projectId)}`, {
       method: 'DELETE',
       headers: buildHeaders(),
     }),
@@ -261,5 +262,12 @@ export const api = {
     request<{ message: string }>(`/users/${encodeURIComponent(email)}`, {
       method: 'DELETE',
       headers: buildHeaders(),
+    }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ message: string }>('/auth/change-password', {
+      method: 'PUT',
+      headers: buildHeaders(),
+      body: JSON.stringify({ currentPassword, newPassword }),
     }),
 };

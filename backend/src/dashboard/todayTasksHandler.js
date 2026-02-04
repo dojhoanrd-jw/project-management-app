@@ -1,13 +1,13 @@
 const { success, withErrorHandler } = require('../shared/response');
 const { withAuth } = require('../auth/middleware');
-const { fetchAllItems } = require('./shared');
+const { fetchAllUserTasks } = require('./shared');
 
 const COMPLETED_STATUSES = new Set(['completed', 'approved']);
 
 const todayTasks = async (event) => {
-  const { userId } = event.user;
+  const { email } = event.user;
 
-  const allTasks = await fetchAllItems(userId, 'TASK#');
+  const allTasks = await fetchAllUserTasks(email);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -25,7 +25,6 @@ const todayTasks = async (event) => {
       isCompleted: COMPLETED_STATUSES.has(t.status),
     }));
 
-  // Category counts for tabs
   const categoryCounts = { all: tasks.length };
   for (const task of tasks) {
     categoryCounts[task.category] = (categoryCounts[task.category] || 0) + 1;

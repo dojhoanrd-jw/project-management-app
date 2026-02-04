@@ -68,7 +68,7 @@ export default function ProjectDetailPage() {
       <ProjectHeader project={project} onUpdated={fetchProject} />
       <ProjectInfoCards project={project} />
       <ProjectMembers project={project} onUpdated={fetchProject} />
-      <ProjectTasks projectId={projectId} tasks={tasks} onTaskChanged={fetchProject} />
+      <ProjectTasks projectId={projectId} tasks={tasks} members={project.members || []} onTaskChanged={fetchProject} userRole={project.currentUserRole} />
     </div>
   );
 }

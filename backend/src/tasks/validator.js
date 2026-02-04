@@ -40,7 +40,11 @@ const createTaskSchema = z.object({
     .max(999, 'Estimated hours must be 999 or less'),
   dueDate: z
     .string({ message: 'Due date is required' })
-    .date('Due date must be a valid date (YYYY-MM-DD)'),
+    .date('Due date must be a valid date (YYYY-MM-DD)')
+    .refine(
+      (date) => new Date(date + 'T23:59:59') >= new Date(new Date().toISOString().split('T')[0]),
+      { message: 'Due date cannot be in the past' },
+    ),
 });
 
 const updateTaskSchema = z.object({

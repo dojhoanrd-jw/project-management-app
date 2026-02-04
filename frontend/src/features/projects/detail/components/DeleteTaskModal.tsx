@@ -21,7 +21,7 @@ export default function DeleteTaskModal({ task, isOpen, onClose, onDeleted }: De
   const handleDelete = async () => {
     setLoading(true);
     try {
-      await api.deleteTask(task.taskId);
+      await api.deleteTask(task.taskId, task.projectId);
       showSuccess('Task deleted successfully');
       onDeleted();
       onClose();

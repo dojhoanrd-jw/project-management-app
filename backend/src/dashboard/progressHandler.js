@@ -1,18 +1,17 @@
 const { success, withErrorHandler } = require('../shared/response');
 const { withAuth } = require('../auth/middleware');
-const { fetchAllItems, calcProjectHealth } = require('./shared');
+const { fetchAllUserProjects, fetchAllUserTasks, calcProjectHealth } = require('./shared');
 
 const progress = async (event) => {
-  const { userId } = event.user;
+  const { email } = event.user;
 
   const [projects, tasks] = await Promise.all([
-    fetchAllItems(userId, 'PROJECT#'),
-    fetchAllItems(userId, 'TASK#'),
+    fetchAllUserProjects(email),
+    fetchAllUserTasks(email),
   ]);
 
   const totalProjects = projects.length;
 
-  // Project health based on weighted progress vs time elapsed toward due date
   const health = { on_track: 0, at_risk: 0, delayed: 0, completed: 0 };
 
   for (const project of projects) {
@@ -21,7 +20,6 @@ const progress = async (event) => {
     health[status]++;
   }
 
-  // Center %: percentage of projects that are fully completed
   const completedPercent = totalProjects > 0
     ? Math.round((health.completed / totalProjects) * 100)
     : 0;

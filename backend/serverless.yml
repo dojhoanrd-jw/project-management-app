@@ -44,6 +44,13 @@ functions:
           path: /auth/login
           method: POST
 
+  changePassword:
+    handler: src/auth/handler.changePassword
+    events:
+      - httpApi:
+          path: /auth/change-password
+          method: PUT
+
   listUsers:
     handler: src/users/handler.list
     events:

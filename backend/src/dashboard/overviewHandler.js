@@ -1,6 +1,6 @@
 const { success, withErrorHandler } = require('../shared/response');
 const { withAuth } = require('../auth/middleware');
-const { getDateRange, fetchAllItems, filterByPeriod, parsePeriod } = require('./shared');
+const { getDateRange, fetchAllUserProjects, fetchAllUserTasks, filterByPeriod, parsePeriod } = require('./shared');
 
 const getUniqueAssignees = (tasks) => {
   const ids = new Set();
@@ -16,13 +16,13 @@ const calcPercent = (current, previous) => {
 };
 
 const overview = async (event) => {
-  const { userId } = event.user;
+  const { email } = event.user;
   const period = parsePeriod(event.queryStringParameters);
   const dateRange = getDateRange(period);
 
   const [projects, allTasks] = await Promise.all([
-    fetchAllItems(userId, 'PROJECT#'),
-    fetchAllItems(userId, 'TASK#'),
+    fetchAllUserProjects(email),
+    fetchAllUserTasks(email),
   ]);
 
   const currentTasks = filterByPeriod(allTasks, dateRange.start);

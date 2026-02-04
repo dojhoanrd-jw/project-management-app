@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, type Task, type Project, type TeamUser } from '@/lib/api';
+import { api, type Task, type Project, type ProjectMember } from '@/lib/api';
 import { ApiError, NetworkError } from '@/lib/errors';
 import { useAlerts } from '@/context/AlertContext';
+import { getCurrentUser } from '@/lib/auth';
 import { Card, StatusBadge, Button, Input } from '@/components/ui';
 import Modal from '@/components/ui/Modal';
 
@@ -56,8 +57,7 @@ function TaskFormModal({
   const [form, setForm] = useState<TaskFormData>(EMPTY_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof TaskFormData, string>>>({});
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState<TeamUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const userSystemRole = getCurrentUser()?.role;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -78,28 +78,29 @@ function TaskFormModal({
       setForm(EMPTY_FORM);
     }
     setErrors({});
-    let cancelled = false;
-    async function fetchUsers() {
-      setLoadingUsers(true);
-      try {
-        const data = await api.getAllUsers();
-        if (!cancelled) setUsers(data.users);
-      } catch { /* silent */ } finally {
-        if (!cancelled) setLoadingUsers(false);
-      }
-    }
-    fetchUsers();
-    return () => { cancelled = true; };
   }, [isOpen, mode, initialData]);
 
+  const selectedProjectMembers: ProjectMember[] = useMemo(() => {
+    if (!form.projectId) return [];
+    const project = projects.find((p) => p.projectId === form.projectId);
+    return project?.members || [];
+  }, [form.projectId, projects]);
+
   const update = (field: keyof TaskFormData, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === 'projectId') {
+        next.assigneeId = '';
+        next.assigneeName = '';
+      }
+      return next;
+    });
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
   const handleAssigneeChange = (email: string) => {
-    const user = users.find((u) => u.email === email);
-    setForm((prev) => ({ ...prev, assigneeId: email, assigneeName: user?.name || '' }));
+    const member = selectedProjectMembers.find((m) => m.email === email);
+    setForm((prev) => ({ ...prev, assigneeId: email, assigneeName: member?.name || '' }));
     if (errors.assigneeId) setErrors((prev) => ({ ...prev, assigneeId: undefined }));
   };
 
@@ -109,7 +110,12 @@ function TaskFormModal({
     if (!form.projectId) e.projectId = 'Project is required';
     if (!form.assigneeId) e.assigneeId = 'Assignee is required';
     if (!form.estimatedHours || Number(form.estimatedHours) < 0.5) e.estimatedHours = 'Min 0.5 hours';
-    if (!form.dueDate) e.dueDate = 'Due date is required';
+    if (!form.dueDate) {
+      e.dueDate = 'Due date is required';
+    } else if (mode === 'create') {
+      const today = new Date().toISOString().split('T')[0];
+      if (form.dueDate < today) e.dueDate = 'Due date cannot be in the past';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -206,7 +212,9 @@ function TaskFormModal({
               <option value="in_progress">In Progress</option>
               <option value="in_review">In Review</option>
               <option value="completed">Completed</option>
-              <option value="approved">Approved</option>
+              {(userSystemRole === 'admin' || userSystemRole === 'project_manager') && (
+                <option value="approved">Approved</option>
+              )}
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -235,12 +243,12 @@ function TaskFormModal({
               id="tf-assignee"
               value={form.assigneeId}
               onChange={(e) => handleAssigneeChange(e.target.value)}
-              disabled={loadingUsers}
+              disabled={!form.projectId}
               className={`${selectClasses} ${errors.assigneeId ? 'border-status-delayed' : 'border-border'}`}
             >
-              <option value="">{loadingUsers ? 'Loading...' : 'Select assignee'}</option>
-              {users.map((u) => (
-                <option key={u.email} value={u.email}>{u.name}</option>
+              <option value="">{!form.projectId ? 'Select a project first' : 'Select assignee'}</option>
+              {selectedProjectMembers.map((m) => (
+                <option key={m.email} value={m.email}>{m.name}</option>
               ))}
             </select>
             {errors.assigneeId && <p className="text-xs text-status-delayed">{errors.assigneeId}</p>}
@@ -262,6 +270,7 @@ function TaskFormModal({
           id="tf-due"
           label="Due Date"
           type="date"
+          min={mode === 'create' ? new Date().toISOString().split('T')[0] : undefined}
           value={form.dueDate}
           onChange={(e) => update('dueDate', e.target.value)}
           error={errors.dueDate}
@@ -350,7 +359,7 @@ export default function TasksPage() {
     if (!deletingTask) return;
     setDeleteLoading(true);
     try {
-      await api.deleteTask(deletingTask.taskId);
+      await api.deleteTask(deletingTask.taskId, deletingTask.projectId);
       showSuccess('Task deleted successfully');
       setDeletingTask(null);
       fetchData();
