@@ -1,6 +1,6 @@
 const { success, withErrorHandler } = require('../shared/response');
 const { withAuth } = require('../auth/middleware');
-const { fetchAllItems } = require('./shared');
+const { fetchAllItems, calcWeightedProgress, calcProjectHealth } = require('./shared');
 
 const projectsSummary = async (event) => {
   const { userId } = event.user;
@@ -18,15 +18,12 @@ const projectsSummary = async (event) => {
       projectId: project.projectId,
       name: project.name,
       status: project.status,
-      progress: project.progress,
+      progress: calcProjectHealth(projectTasks, project.dueDate, project.createdAt),
       dueDate: project.dueDate,
       managerName: project.managerName,
       totalTasks: projectTasks.length,
       completedTasks: completedTasks.length,
-      completionPercent:
-        projectTasks.length > 0
-          ? Math.round((completedTasks.length / projectTasks.length) * 100)
-          : 0,
+      completionPercent: calcWeightedProgress(projectTasks),
     };
   });
 

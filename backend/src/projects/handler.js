@@ -1,11 +1,11 @@
 const crypto = require('crypto');
-const { PutCommand, GetCommand, QueryCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { PutCommand, GetCommand, QueryCommand, UpdateCommand, DeleteCommand, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
 const { docClient, TABLE_NAME } = require('../shared/dynamo');
 const { success, withErrorHandler, parseBody } = require('../shared/response');
 const { ValidationError, NotFoundError } = require('../shared/errors');
 const { withAuth } = require('../auth/middleware');
 const { createProjectSchema, updateProjectSchema } = require('./validator');
-const { fetchAllItems } = require('../dashboard/shared');
+const { fetchAllItems, calcWeightedProgress, calcProjectHealth } = require('../dashboard/shared');
 
 const create = async (event) => {
   const body = parseBody(event);
@@ -102,6 +102,31 @@ const remove = async (event) => {
     throw new ValidationError('Project ID is required');
   }
 
+  // Fetch all tasks for this project
+  const allTasks = await fetchAllItems(userId, 'TASK#');
+  const projectTasks = allTasks.filter((t) => t.projectId === projectId);
+
+  // Delete tasks in batches of 25 (DynamoDB BatchWrite limit)
+  const chunks = [];
+  for (let i = 0; i < projectTasks.length; i += 25) {
+    chunks.push(projectTasks.slice(i, i + 25));
+  }
+
+  for (const chunk of chunks) {
+    await docClient.send(
+      new BatchWriteCommand({
+        RequestItems: {
+          [TABLE_NAME]: chunk.map((task) => ({
+            DeleteRequest: {
+              Key: { PK: userId, SK: `TASK#${task.taskId}` },
+            },
+          })),
+        },
+      })
+    );
+  }
+
+  // Delete the project itself
   await docClient.send(
     new DeleteCommand({
       TableName: TABLE_NAME,
@@ -110,7 +135,7 @@ const remove = async (event) => {
     })
   );
 
-  return success({ message: 'Project deleted' });
+  return success({ message: 'Project deleted', deletedTasks: projectTasks.length });
 };
 
 const get = async (event) => {
@@ -146,9 +171,8 @@ const enrichProjectWithMetrics = (project, tasks) => {
   const totalTasks = projectTasks.length;
   const completedTasks = projectTasks.filter((t) => t.status === 'completed').length;
   const totalHours = projectTasks.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
-  const completionPercent = totalTasks > 0
-    ? Math.round((completedTasks / totalTasks) * 100)
-    : 0;
+  const completionPercent = calcWeightedProgress(projectTasks);
+  const healthStatus = calcProjectHealth(projectTasks, project.dueDate, project.createdAt);
 
   return {
     ...project,
@@ -156,6 +180,7 @@ const enrichProjectWithMetrics = (project, tasks) => {
     completionPercent,
     totalTasks,
     completedTasks,
+    healthStatus,
   };
 };
 

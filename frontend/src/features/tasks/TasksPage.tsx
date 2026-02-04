@@ -30,6 +30,7 @@ interface TaskFormData {
   projectId: string;
   status: string;
   priority: string;
+  category: string;
   assigneeId: string;
   assigneeName: string;
   estimatedHours: string;
@@ -38,7 +39,7 @@ interface TaskFormData {
 
 const EMPTY_FORM: TaskFormData = {
   title: '', description: '', projectId: '', status: 'todo', priority: 'medium',
-  assigneeId: '', assigneeName: '', estimatedHours: '', dueDate: '',
+  category: 'important', assigneeId: '', assigneeName: '', estimatedHours: '', dueDate: '',
 };
 
 function TaskFormModal({
@@ -67,6 +68,7 @@ function TaskFormModal({
         projectId: initialData.projectId,
         status: initialData.status,
         priority: initialData.priority,
+        category: initialData.category || 'important',
         assigneeId: initialData.assigneeId,
         assigneeName: initialData.assigneeName,
         estimatedHours: String(initialData.estimatedHours),
@@ -124,6 +126,7 @@ function TaskFormModal({
         projectId: form.projectId,
         status: form.status,
         priority: form.priority,
+        category: form.category,
         assigneeId: form.assigneeId,
         assigneeName: form.assigneeName,
         estimatedHours: Number(form.estimatedHours),
@@ -195,7 +198,7 @@ function TaskFormModal({
           {errors.projectId && <p className="text-xs text-status-delayed">{errors.projectId}</p>}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="tf-status" className="text-sm font-medium text-text-primary">Status</label>
             <select id="tf-status" value={form.status} onChange={(e) => update('status', e.target.value)} className={`${selectClasses} border-border`}>
@@ -213,6 +216,14 @@ function TaskFormModal({
               <option value="medium">Medium</option>
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="tf-category" className="text-sm font-medium text-text-primary">Category</label>
+            <select id="tf-category" value={form.category} onChange={(e) => update('category', e.target.value)} className={`${selectClasses} border-border`}>
+              <option value="important">Important</option>
+              <option value="notes">Notes</option>
+              <option value="link">Links</option>
             </select>
           </div>
         </div>

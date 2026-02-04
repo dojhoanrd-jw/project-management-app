@@ -19,6 +19,7 @@ interface FormData {
   description: string;
   status: string;
   priority: string;
+  category: string;
   assigneeId: string;
   assigneeName: string;
   estimatedHours: string;
@@ -30,6 +31,7 @@ const INITIAL: FormData = {
   description: '',
   status: 'todo',
   priority: 'medium',
+  category: 'important',
   assigneeId: '',
   assigneeName: '',
   estimatedHours: '',
@@ -95,6 +97,7 @@ export default function CreateTaskModal({ projectId, isOpen, onClose, onCreated 
         projectId,
         status: form.status,
         priority: form.priority,
+        category: form.category,
         assigneeId: form.assigneeId,
         assigneeName: form.assigneeName,
         estimatedHours: Number(form.estimatedHours),
@@ -142,7 +145,7 @@ export default function CreateTaskModal({ projectId, isOpen, onClose, onCreated 
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="task-status" className="text-sm font-medium text-text-primary">Status</label>
             <select id="task-status" value={form.status} onChange={(e) => update('status', e.target.value)} className={`${selectClasses} border-border`}>
@@ -159,6 +162,14 @@ export default function CreateTaskModal({ projectId, isOpen, onClose, onCreated 
               <option value="medium">Medium</option>
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="task-category" className="text-sm font-medium text-text-primary">Category</label>
+            <select id="task-category" value={form.category} onChange={(e) => update('category', e.target.value)} className={`${selectClasses} border-border`}>
+              <option value="important">Important</option>
+              <option value="notes">Notes</option>
+              <option value="link">Links</option>
             </select>
           </div>
         </div>

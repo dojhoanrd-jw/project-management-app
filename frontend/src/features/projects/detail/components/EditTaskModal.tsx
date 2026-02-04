@@ -19,6 +19,7 @@ interface FormData {
   description: string;
   status: string;
   priority: string;
+  category: string;
   assigneeId: string;
   assigneeName: string;
   estimatedHours: string;
@@ -28,7 +29,7 @@ interface FormData {
 export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: EditTaskModalProps) {
   const { showSuccess, showError } = useAlerts();
   const [form, setForm] = useState<FormData>({
-    title: '', description: '', status: '', priority: '',
+    title: '', description: '', status: '', priority: '', category: '',
     assigneeId: '', assigneeName: '', estimatedHours: '', dueDate: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -43,6 +44,7 @@ export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: Edit
       description: task.description || '',
       status: task.status,
       priority: task.priority,
+      category: task.category || 'important',
       assigneeId: task.assigneeId,
       assigneeName: task.assigneeName,
       estimatedHours: String(task.estimatedHours),
@@ -95,6 +97,7 @@ export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: Edit
         description: form.description.trim(),
         status: form.status,
         priority: form.priority,
+        category: form.category,
         assigneeId: form.assigneeId,
         assigneeName: form.assigneeName,
         estimatedHours: Number(form.estimatedHours),
@@ -142,7 +145,7 @@ export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: Edit
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="edit-task-status" className="text-sm font-medium text-text-primary">Status</label>
             <select id="edit-task-status" value={form.status} onChange={(e) => update('status', e.target.value)} className={`${selectClasses} border-border`}>
@@ -160,6 +163,14 @@ export default function EditTaskModal({ task, isOpen, onClose, onUpdated }: Edit
               <option value="medium">Medium</option>
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="edit-task-category" className="text-sm font-medium text-text-primary">Category</label>
+            <select id="edit-task-category" value={form.category} onChange={(e) => update('category', e.target.value)} className={`${selectClasses} border-border`}>
+              <option value="important">Important</option>
+              <option value="notes">Notes</option>
+              <option value="link">Links</option>
             </select>
           </div>
         </div>

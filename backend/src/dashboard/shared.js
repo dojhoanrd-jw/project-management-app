@@ -75,6 +75,47 @@ const parsePeriod = (queryStringParameters) => {
   return PERIOD_MAP[period] ? period : '1month';
 };
 
+// Weighted progress per task status
+const STATUS_WEIGHT = {
+  todo: 0,
+  in_progress: 25,
+  in_review: 50,
+  approved: 75,
+  completed: 100,
+};
+
+// Calculate weighted progress for a set of tasks (0-100)
+const calcWeightedProgress = (tasks) => {
+  if (tasks.length === 0) return 0;
+  const total = tasks.reduce((sum, t) => sum + (STATUS_WEIGHT[t.status] || 0), 0);
+  return Math.round(total / tasks.length);
+};
+
+// Determine project health based on task progress vs time elapsed toward dueDate
+const calcProjectHealth = (tasks, dueDate, createdAt) => {
+  if (tasks.length === 0) return 'delayed';
+
+  const progress = calcWeightedProgress(tasks);
+  if (progress === 100) return 'completed';
+
+  const now = new Date();
+  const due = new Date(dueDate);
+  const created = new Date(createdAt || due);
+  created.setMonth(created.getMonth() - 1); // fallback: assume 1 month project if no createdAt
+
+  const totalDuration = due.getTime() - created.getTime();
+  const elapsed = now.getTime() - created.getTime();
+  const expectedProgress = totalDuration > 0
+    ? Math.min(100, Math.round((elapsed / totalDuration) * 100))
+    : 100;
+
+  const gap = expectedProgress - progress;
+
+  if (gap <= 10) return 'on_track';
+  if (gap <= 30) return 'at_risk';
+  return 'delayed';
+};
+
 module.exports = {
   HOURS_PER_MONTH,
   PERIOD_MAP,
@@ -82,4 +123,7 @@ module.exports = {
   fetchAllItems,
   filterByPeriod,
   parsePeriod,
+  STATUS_WEIGHT,
+  calcWeightedProgress,
+  calcProjectHealth,
 };
