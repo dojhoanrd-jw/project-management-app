@@ -30,6 +30,8 @@ provider:
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
             - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:BatchWriteItem
           Resource:
             - "arn:aws:dynamodb:${aws:region}:*:table/AppData"
             - "arn:aws:dynamodb:${aws:region}:*:table/AppData/index/*"
@@ -48,6 +50,27 @@ functions:
       - httpApi:
           path: /users
           method: GET
+
+  createUser:
+    handler: src/users/handler.create
+    events:
+      - httpApi:
+          path: /users
+          method: POST
+
+  updateUser:
+    handler: src/users/handler.update
+    events:
+      - httpApi:
+          path: /users/{email}
+          method: PUT
+
+  deleteUser:
+    handler: src/users/handler.remove
+    events:
+      - httpApi:
+          path: /users/{email}
+          method: DELETE
 
   createProject:
     handler: src/projects/handler.create

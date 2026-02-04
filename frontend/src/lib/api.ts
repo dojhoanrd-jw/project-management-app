@@ -242,4 +242,24 @@ export const api = {
       method: 'DELETE',
       headers: buildHeaders(),
     }),
+
+  createUser: (data: { email: string; name: string; role: string; password: string }) =>
+    request<{ user: TeamUser }>('/users', {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: JSON.stringify(data),
+    }),
+
+  updateUser: (email: string, data: { name?: string; role?: string }) =>
+    request<{ user: TeamUser }>(`/users/${encodeURIComponent(email)}`, {
+      method: 'PUT',
+      headers: buildHeaders(),
+      body: JSON.stringify(data),
+    }),
+
+  deleteUser: (email: string) =>
+    request<{ message: string }>(`/users/${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+      headers: buildHeaders(),
+    }),
 };
