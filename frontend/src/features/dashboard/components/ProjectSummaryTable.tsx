@@ -66,7 +66,7 @@ export default function ProjectSummaryTable({ projects }: ProjectSummaryTablePro
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold text-text-primary">Project summary</h3>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Project filter */}
           <div className="relative">
             <select
@@ -150,6 +150,7 @@ export default function ProjectSummaryTable({ projects }: ProjectSummaryTablePro
           </tbody>
         </table>
       </div>
+
     </div>
   );
 }

@@ -8,3 +8,4 @@ export { default as IconButton } from './IconButton';
 export { default as MetricCard } from './MetricCard';
 export { default as StatusBadge } from './StatusBadge';
 export { default as ProgressCircle } from './ProgressCircle';
+export { default as Modal } from './Modal';

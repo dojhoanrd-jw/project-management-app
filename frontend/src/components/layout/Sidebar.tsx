@@ -8,6 +8,7 @@ interface SidebarProps {
   onClose: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onCreateProject: () => void;
 }
 
 const NAV_ITEMS = [
@@ -40,7 +41,7 @@ const NAV_ITEMS = [
   },
 ];
 
-export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarProps) {
+export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, onCreateProject }: SidebarProps) {
   const pathname = usePathname();
 
   const sidebarWidth = collapsed ? 'w-[72px]' : 'w-60';
@@ -77,6 +78,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
       {/* Create new project button */}
       <div className={`mt-8 ${collapsed ? 'px-3' : 'px-4'}`}>
         <button
+          onClick={onCreateProject}
           className={`
             flex w-full items-center gap-3 rounded-full bg-white py-2.5 text-sm font-medium
             text-text-primary shadow-sm transition-colors hover:bg-surface-hover cursor-pointer

@@ -27,6 +27,16 @@ const createProjectSchema = z.object({
   dueDate: z
     .string({ message: 'Due date is required' })
     .date('Due date must be a valid date (YYYY-MM-DD)'),
+  members: z
+    .array(
+      z.object({
+        email: z.string().email(),
+        name: z.string().min(1),
+        role: z.string().min(1),
+      })
+    )
+    .optional()
+    .default([]),
 });
 
 const updateProjectSchema = z.object({

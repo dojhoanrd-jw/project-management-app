@@ -42,6 +42,13 @@ functions:
           path: /auth/login
           method: POST
 
+  listUsers:
+    handler: src/users/handler.list
+    events:
+      - httpApi:
+          path: /users
+          method: GET
+
   createProject:
     handler: src/projects/handler.create
     events:
@@ -56,6 +63,13 @@ functions:
           path: /projects
           method: GET
 
+  getProject:
+    handler: src/projects/handler.get
+    events:
+      - httpApi:
+          path: /projects/{projectId}
+          method: GET
+
   updateProject:
     handler: src/projects/handler.update
     events:
@@ -68,6 +82,20 @@ functions:
     events:
       - httpApi:
           path: /projects/{projectId}
+          method: DELETE
+
+  addProjectMember:
+    handler: src/projects/handler.addMember
+    events:
+      - httpApi:
+          path: /projects/{projectId}/members
+          method: POST
+
+  removeProjectMember:
+    handler: src/projects/handler.removeMember
+    events:
+      - httpApi:
+          path: /projects/{projectId}/members/{memberEmail}
           method: DELETE
 
   createTask:

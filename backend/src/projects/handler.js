@@ -1,8 +1,8 @@
 const crypto = require('crypto');
-const { PutCommand, QueryCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { PutCommand, GetCommand, QueryCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 const { docClient, TABLE_NAME } = require('../shared/dynamo');
 const { success, withErrorHandler, parseBody } = require('../shared/response');
-const { ValidationError } = require('../shared/errors');
+const { ValidationError, NotFoundError } = require('../shared/errors');
 const { withAuth } = require('../auth/middleware');
 const { createProjectSchema, updateProjectSchema } = require('./validator');
 const { fetchAllItems } = require('../dashboard/shared');
@@ -15,7 +15,7 @@ const create = async (event) => {
     throw new ValidationError(result.error.issues[0]?.message || 'Invalid data');
   }
 
-  const { name, description, status, progress, managerId, managerName, dueDate } = result.data;
+  const { name, description, status, progress, managerId, managerName, dueDate, members } = result.data;
   const { userId } = event.user;
   const projectId = crypto.randomUUID();
 
@@ -32,6 +32,7 @@ const create = async (event) => {
     managerId,
     managerName,
     dueDate,
+    members,
     type: 'project',
     createdAt: new Date().toISOString(),
   };
@@ -112,6 +113,34 @@ const remove = async (event) => {
   return success({ message: 'Project deleted' });
 };
 
+const get = async (event) => {
+  const { userId } = event.user;
+  const { projectId } = event.pathParameters || {};
+
+  if (!projectId) {
+    throw new ValidationError('Project ID is required');
+  }
+
+  const [{ Item }, allTasks] = await Promise.all([
+    docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { PK: userId, SK: `PROJECT#${projectId}` },
+      })
+    ),
+    fetchAllItems(userId, 'TASK#'),
+  ]);
+
+  if (!Item) {
+    throw new NotFoundError('Project not found');
+  }
+
+  const projectTasks = allTasks.filter((t) => t.projectId === projectId);
+  const enriched = enrichProjectWithMetrics(Item, allTasks);
+
+  return success({ project: enriched, tasks: projectTasks });
+};
+
 const enrichProjectWithMetrics = (project, tasks) => {
   const projectTasks = tasks.filter((t) => t.projectId === project.projectId);
   const totalTasks = projectTasks.length;
@@ -168,9 +197,93 @@ const list = async (event) => {
   return success(response);
 };
 
+const addMember = async (event) => {
+  const { userId } = event.user;
+  const { projectId } = event.pathParameters || {};
+
+  if (!projectId) throw new ValidationError('Project ID is required');
+
+  const body = parseBody(event);
+  const { email, name, role } = body;
+
+  if (!email || !name) throw new ValidationError('Member email and name are required');
+
+  const { Item } = await docClient.send(
+    new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: userId, SK: `PROJECT#${projectId}` },
+    })
+  );
+
+  if (!Item) throw new NotFoundError('Project not found');
+
+  const members = Item.members || [];
+  if (members.some((m) => m.email === email)) {
+    throw new ValidationError('Member already exists in this project');
+  }
+
+  members.push({ email, name, role: role || 'member' });
+
+  const { Attributes } = await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: userId, SK: `PROJECT#${projectId}` },
+      UpdateExpression: 'SET #members = :members, #updatedAt = :updatedAt',
+      ExpressionAttributeNames: { '#members': 'members', '#updatedAt': 'updatedAt' },
+      ExpressionAttributeValues: {
+        ':members': members,
+        ':updatedAt': new Date().toISOString(),
+      },
+      ReturnValues: 'ALL_NEW',
+    })
+  );
+
+  return success({ project: Attributes });
+};
+
+const removeMember = async (event) => {
+  const { userId } = event.user;
+  const { projectId, memberEmail } = event.pathParameters || {};
+
+  if (!projectId) throw new ValidationError('Project ID is required');
+  if (!memberEmail) throw new ValidationError('Member email is required');
+
+  const decodedEmail = decodeURIComponent(memberEmail);
+
+  const { Item } = await docClient.send(
+    new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: userId, SK: `PROJECT#${projectId}` },
+    })
+  );
+
+  if (!Item) throw new NotFoundError('Project not found');
+
+  const members = (Item.members || []).filter((m) => m.email !== decodedEmail);
+
+  const { Attributes } = await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: userId, SK: `PROJECT#${projectId}` },
+      UpdateExpression: 'SET #members = :members, #updatedAt = :updatedAt',
+      ExpressionAttributeNames: { '#members': 'members', '#updatedAt': 'updatedAt' },
+      ExpressionAttributeValues: {
+        ':members': members,
+        ':updatedAt': new Date().toISOString(),
+      },
+      ReturnValues: 'ALL_NEW',
+    })
+  );
+
+  return success({ project: Attributes });
+};
+
 module.exports = {
   create: withAuth(withErrorHandler('Create project', create)),
+  get: withAuth(withErrorHandler('Get project', get)),
   update: withAuth(withErrorHandler('Update project', update)),
   remove: withAuth(withErrorHandler('Delete project', remove)),
   list: withAuth(withErrorHandler('List projects', list)),
+  addMember: withAuth(withErrorHandler('Add project member', addMember)),
+  removeMember: withAuth(withErrorHandler('Remove project member', removeMember)),
 };
