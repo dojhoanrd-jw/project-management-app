@@ -239,6 +239,7 @@ const en: Record<string, string> = {
   'table.role': 'Role',
   'table.progress': 'Progress',
   'table.projectManager': 'Project manager',
+  'table.showing': 'Showing {from}–{to} of {total}',
 
   // ── Delete Confirmation ──
   'delete.confirm': 'Are you sure you want to delete {name}? This action cannot be undone.',

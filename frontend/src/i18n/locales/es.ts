@@ -239,6 +239,7 @@ const es: Record<string, string> = {
   'table.role': 'Rol',
   'table.progress': 'Progreso',
   'table.projectManager': 'Gestor del proyecto',
+  'table.showing': 'Mostrando {from}–{to} de {total}',
 
   // ── Confirmación de Eliminación ──
   'delete.confirm': '¿Estás seguro de que deseas eliminar {name}? Esta acción no se puede deshacer.',
