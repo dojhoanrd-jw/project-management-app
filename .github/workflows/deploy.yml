@@ -8,10 +8,6 @@ jobs:
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
-    if: >-
-      contains(toJSON(github.event.commits.*.modified), 'backend/') ||
-      contains(toJSON(github.event.commits.*.added), 'backend/') ||
-      contains(toJSON(github.event.commits.*.modified), '.github/workflows/')
     steps:
       - uses: actions/checkout@v4
 
@@ -34,10 +30,6 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
-    if: >-
-      contains(toJSON(github.event.commits.*.modified), 'frontend/') ||
-      contains(toJSON(github.event.commits.*.added), 'frontend/') ||
-      contains(toJSON(github.event.commits.*.modified), '.github/workflows/')
     steps:
       - uses: actions/checkout@v4
 

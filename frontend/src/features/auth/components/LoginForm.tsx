@@ -38,7 +38,7 @@ export default function LoginForm() {
         <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-accent-light">
           <AddUserIcon className="h-5 w-5 text-accent" />
         </div>
-        <h1 className="text-xl font-semibold text-text-primary">AWelcome back</h1>
+        <h1 className="text-xl font-semibold text-text-primary">Welcome</h1>
         <p className="mt-1 text-sm text-text-secondary">Sign in to your account</p>
       </div>
 
