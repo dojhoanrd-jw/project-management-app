@@ -12,7 +12,7 @@ const client = new DynamoDBClient(
 );
 
 const docClient = DynamoDBDocumentClient.from(client);
-const TABLE_NAME = process.env.DYNAMODB_TABLE || 'AppData';
+const TABLE_NAME = process.env.DYNAMODB_TABLE || 'AppData-prod';
 
 const USERS = [
   { email: 'admin@demo.com', password: 'admin123', name: 'Admin User', role: 'admin' },
@@ -185,6 +185,8 @@ const seed = async () => {
         Item: {
           PK: `USER#${user.email}`,
           SK: 'PROFILE',
+          GSI1PK: 'USERS',
+          GSI1SK: `USER#${user.email}`,
           email: user.email,
           name: user.name,
           password: hashedPassword,
