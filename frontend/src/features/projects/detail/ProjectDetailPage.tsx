@@ -14,11 +14,13 @@ export default function ProjectDetailPage() {
   const { mutate } = useSWRConfig();
   const projectId = params.projectId as string;
 
-  const { data, isLoading } = useSWR<{ project: Project; tasks: Task[] }>(`/projects/${projectId}`);
+  const { data, isLoading } = useSWR<{ project: Project; tasks: Task[] }>(
+    projectId && projectId !== '_' ? `/projects/${projectId}` : null
+  );
 
   const revalidate = () => mutate(`/projects/${projectId}`);
 
-  if (isLoading) {
+  if (isLoading || projectId === '_') {
     return (
       <div className="flex flex-col gap-6">
         <div className="h-24 animate-pulse rounded-2xl bg-surface" />
