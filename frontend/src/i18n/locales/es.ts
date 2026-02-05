@@ -138,6 +138,8 @@ const es: Record<string, string> = {
   'projectDetail.noMembersDesc': 'Haz clic en "Agregar miembro" para comenzar.',
   'projectDetail.removeMember': 'Quitar miembro',
   'projectDetail.allUsersAlreadyMembers': 'Todos los usuarios ya son miembros de este proyecto.',
+  'projectDetail.notFound': 'Proyecto no encontrado',
+  'projectDetail.backToProjects': 'Volver a proyectos',
 
   // ── Página de Tareas ──
   'tasks.title': 'Tareas',
