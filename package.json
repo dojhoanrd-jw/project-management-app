@@ -3,16 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "frontend",
-    "backend"
+    "frontend"
   ],
   "scripts": {
-    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "dev": "concurrently -n api,web -c blue,green \"npm --prefix backend run dev\" \"npm run dev -w frontend\"",
     "dev:frontend": "npm run dev -w frontend",
-    "dev:backend": "npm run dev -w backend",
+    "dev:backend": "npm --prefix backend run dev",
     "build": "npm run build -w frontend",
-    "seed": "npm run seed -w backend",
-    "seed:local": "npm run seed:local -w backend"
+    "seed": "npm --prefix backend run seed",
+    "seed:local": "npm --prefix backend run seed:local",
+    "deploy:backend": "cd backend && npx serverless deploy --stage prod",
+    "install:all": "npm install && cd backend && npm install"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

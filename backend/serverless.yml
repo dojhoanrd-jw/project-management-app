@@ -7,7 +7,8 @@ provider:
   httpApi:
     cors:
       allowedOrigins:
-        - '*'
+        - 'https://d3rx7s4hbv9ebb.cloudfront.net'
+        - 'http://localhost:3001'
       allowedHeaders:
         - Content-Type
         - Authorization
@@ -18,7 +19,7 @@ provider:
         - DELETE
         - OPTIONS
   environment:
-    DYNAMODB_TABLE: AppData
+    DYNAMODB_TABLE: AppData-${sls:stage}
     JWT_SECRET: ${env:JWT_SECRET}
   iam:
     role:
@@ -32,9 +33,10 @@ provider:
             - dynamodb:Query
             - dynamodb:Scan
             - dynamodb:BatchWriteItem
+            - dynamodb:BatchGetItem
           Resource:
-            - "arn:aws:dynamodb:${aws:region}:*:table/AppData"
-            - "arn:aws:dynamodb:${aws:region}:*:table/AppData/index/*"
+            - "arn:aws:dynamodb:${aws:region}:*:table/AppData-${sls:stage}"
+            - "arn:aws:dynamodb:${aws:region}:*:table/AppData-${sls:stage}/index/*"
 
 functions:
   login:
@@ -206,7 +208,7 @@ resources:
     AppDataTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: AppData
+        TableName: AppData-${sls:stage}
         AttributeDefinitions:
           - AttributeName: PK
             AttributeType: S
@@ -231,3 +233,106 @@ resources:
             Projection:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
+
+    # ── S3 Bucket for frontend static hosting ──
+    FrontendBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: project-manager-frontend-jhoan-${sls:stage}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+
+    FrontendBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref FrontendBucket
+        PolicyDocument:
+          Statement:
+            - Sid: AllowCloudFrontOAC
+              Effect: Allow
+              Principal:
+                Service: cloudfront.amazonaws.com
+              Action: s3:GetObject
+              Resource: !Sub "${FrontendBucket.Arn}/*"
+              Condition:
+                StringEquals:
+                  AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}"
+
+    # ── CloudFront Origin Access Control ──
+    FrontendOAC:
+      Type: AWS::CloudFront::OriginAccessControl
+      Properties:
+        OriginAccessControlConfig:
+          Name: project-manager-oac-${sls:stage}
+          OriginAccessControlOriginType: s3
+          SigningBehavior: always
+          SigningProtocol: sigv4
+
+    # ── CloudFront Function for SPA URL rewriting ──
+    SpaRewriteFunction:
+      Type: AWS::CloudFront::Function
+      Properties:
+        Name: spa-url-rewrite-${sls:stage}
+        AutoPublish: true
+        FunctionConfig:
+          Comment: "Rewrite SPA URLs to .html files"
+          Runtime: cloudfront-js-2.0
+        FunctionCode: |
+          function handler(event) {
+            var request = event.request;
+            var uri = request.uri;
+            if (uri === '/') return request;
+            if (uri.endsWith('/')) {
+              request.uri = uri.slice(0, -1) + '.html';
+            } else if (!uri.includes('.')) {
+              request.uri = uri + '.html';
+            }
+            return request;
+          }
+
+    # ── CloudFront Distribution ──
+    FrontendDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Enabled: true
+          DefaultRootObject: index.html
+          Origins:
+            - Id: S3Origin
+              DomainName: !GetAtt FrontendBucket.RegionalDomainName
+              OriginAccessControlId: !GetAtt FrontendOAC.Id
+              S3OriginConfig:
+                OriginAccessIdentity: ""
+          DefaultCacheBehavior:
+            TargetOriginId: S3Origin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            ForwardedValues:
+              QueryString: false
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt SpaRewriteFunction.FunctionARN
+          # SPA fallback: serve index.html for unknown routes
+          CustomErrorResponses:
+            - ErrorCode: 403
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+              ErrorCachingMinTTL: 0
+            - ErrorCode: 404
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+              ErrorCachingMinTTL: 0
+          PriceClass: PriceClass_100
+
+  Outputs:
+    FrontendBucketName:
+      Value: !Ref FrontendBucket
+    FrontendURL:
+      Value: !Sub "https://${FrontendDistribution.DomainName}"
+    CloudFrontDistributionId:
+      Value: !Ref FrontendDistribution
