@@ -43,7 +43,7 @@ export default function MetricCard({ icon, iconBg, label, value, total, unit, gr
           />
         </svg>
         <span className="text-text-primary">
-          {Math.abs(growth)}% {isPositive ? 'increase' : 'decrease'} from last month
+          {Math.abs(growth)}% {isPositive ? 'increase' : 'decrease'} since the last period
         </span>
       </div>
     </div>

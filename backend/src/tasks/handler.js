@@ -1,8 +1,9 @@
 const crypto = require('crypto');
-const { PutCommand, QueryCommand, GetCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 const { docClient, TABLE_NAME } = require('../shared/dynamo');
+const { queryAll } = require('../shared/queryAll');
 const { success, withErrorHandler, parseBody } = require('../shared/response');
-const { NotFoundError, ValidationError } = require('../shared/errors');
+const { ValidationError } = require('../shared/errors');
 const { withAuth } = require('../auth/middleware');
 const { requireProjectRole } = require('../shared/authorization');
 const { createTaskSchema, updateTaskSchema } = require('./validator');
@@ -226,27 +227,12 @@ const list = async (event) => {
 const myTasks = async (event) => {
   const { email } = event.user;
 
-  const items = [];
-  let lastKey;
-
-  do {
-    const params = {
-      TableName: TABLE_NAME,
-      IndexName: 'GSI1',
-      KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
-      ExpressionAttributeValues: {
-        ':pk': `ASSIGNEE#${email}`,
-        ':sk': 'TASK#',
-      },
-    };
-    if (lastKey) params.ExclusiveStartKey = lastKey;
-
-    const { Items = [], LastEvaluatedKey } = await docClient.send(
-      new QueryCommand(params),
-    );
-    items.push(...Items);
-    lastKey = LastEvaluatedKey;
-  } while (lastKey);
+  const items = await queryAll({
+    TableName: TABLE_NAME,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
+    ExpressionAttributeValues: { ':pk': `ASSIGNEE#${email}`, ':sk': 'TASK#' },
+  });
 
   return success({ tasks: items });
 };

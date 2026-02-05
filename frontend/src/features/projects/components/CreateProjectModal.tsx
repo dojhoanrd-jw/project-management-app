@@ -1,9 +1,10 @@
 'use client';
 
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { api, type TeamUser } from '@/lib/api';
 import { useAlerts } from '@/context/AlertContext';
 import { handleApiError, useFormState, useValidation } from '@/hooks';
+import { projectRules } from '../validation';
 import { PROJECT_STATUS_OPTIONS } from '@/lib/constants';
 import { Button, Input, Textarea, Select, Modal } from '@/components/ui';
 
@@ -35,13 +36,7 @@ export default memo(function CreateProjectModal({ isOpen, onClose, onCreated }: 
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const rules = useMemo(() => ({
-    name: (v: string) => !v.trim() ? 'Project name is required' : undefined,
-    managerId: (v: string) => !v ? 'Project manager is required' : undefined,
-    dueDate: (v: string) => !v ? 'Due date is required' : undefined,
-  }), []);
-
-  const { errors, validate, clearErrors } = useValidation<ProjectFormData>(rules);
+  const { errors, validate, clearErrors } = useValidation<ProjectFormData>(projectRules);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -100,7 +95,7 @@ export default memo(function CreateProjectModal({ isOpen, onClose, onCreated }: 
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="New Project" maxWidth="md">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <Input
           id="project-name"
           label="Project Name"
@@ -108,7 +103,6 @@ export default memo(function CreateProjectModal({ isOpen, onClose, onCreated }: 
           value={form.name}
           onChange={(e) => update('name', e.target.value)}
           error={errors.name}
-          required
         />
 
         <Textarea
@@ -137,7 +131,6 @@ export default memo(function CreateProjectModal({ isOpen, onClose, onCreated }: 
             value={form.dueDate}
             onChange={(e) => update('dueDate', e.target.value)}
             error={errors.dueDate}
-            required
           />
         </div>
 

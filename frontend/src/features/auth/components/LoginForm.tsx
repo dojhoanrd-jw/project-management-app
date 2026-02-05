@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { storage } from '@/lib/storage';
 import { useAlerts } from '@/context/AlertContext';
-import { handleApiError } from '@/hooks';
+import { handleApiError, useValidation } from '@/hooks';
+import { loginRules } from '../validation';
 import { Button, Input, Card } from '@/components/ui';
 import { AddUserIcon } from '@/components/icons';
+
+interface LoginFormData { email: string; password: string }
 
 export default function LoginForm() {
   const router = useRouter();
@@ -15,9 +18,11 @@ export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { errors, validate } = useValidation<LoginFormData>(loginRules);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate({ email, password })) return;
     setLoading(true);
 
     try {
@@ -42,7 +47,7 @@ export default function LoginForm() {
         <p className="mt-1 text-sm text-text-secondary">Sign in to your account</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <Input
           id="email"
           label="Email"
@@ -50,7 +55,7 @@ export default function LoginForm() {
           placeholder="you@company.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          required
+          error={errors.email}
         />
 
         <Input
@@ -60,7 +65,7 @@ export default function LoginForm() {
           placeholder="Enter your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          required
+          error={errors.password}
         />
 
         <Button type="submit" isLoading={loading} className="mt-2 w-full">

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { api, type Project, type TeamUser } from '@/lib/api';
 import { useAlerts } from '@/context/AlertContext';
-import { handleApiError, useFormState } from '@/hooks';
+import { handleApiError, useFormState, useValidation } from '@/hooks';
+import { projectRules } from '../../validation';
 import { PROJECT_STATUS_OPTIONS, PROJECT_PROGRESS_OPTIONS } from '@/lib/constants';
 import { Button, Input, Textarea, Select, Modal } from '@/components/ui';
 
@@ -25,7 +26,8 @@ const INITIAL_FORM = {
 
 export default function EditProjectModal({ project, isOpen, onClose, onUpdated }: EditProjectModalProps) {
   const { showSuccess, showError } = useAlerts();
-  const { form, setForm, errors, setErrors, loading, setLoading, update } = useFormState(INITIAL_FORM);
+  const { form, setForm, loading, setLoading, update } = useFormState(INITIAL_FORM);
+  const { errors, validate, clearErrors } = useValidation<typeof INITIAL_FORM>(projectRules);
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
@@ -39,8 +41,8 @@ export default function EditProjectModal({ project, isOpen, onClose, onUpdated }
       managerId: project.managerId,
       dueDate: project.dueDate,
     });
-    setErrors({});
-  }, [isOpen, project, setForm, setErrors]);
+    clearErrors();
+  }, [isOpen, project, setForm, clearErrors]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -62,18 +64,9 @@ export default function EditProjectModal({ project, isOpen, onClose, onUpdated }
     return () => { cancelled = true; };
   }, [isOpen]);
 
-  const validate = (): boolean => {
-    const e: Partial<Record<keyof typeof INITIAL_FORM, string>> = {};
-    if (!form.name.trim()) e.name = 'Project name is required';
-    if (!form.managerId) e.managerId = 'Project manager is required';
-    if (!form.dueDate) e.dueDate = 'Due date is required';
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate(form)) return;
 
     const selectedManager = users.find((u) => u.email === form.managerId);
 
@@ -99,14 +92,13 @@ export default function EditProjectModal({ project, isOpen, onClose, onUpdated }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit Project" maxWidth="md">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <Input
           id="edit-name"
           label="Project Name"
           value={form.name}
           onChange={(e) => update('name', e.target.value)}
           error={errors.name}
-          required
         />
 
         <Textarea
@@ -160,7 +152,6 @@ export default function EditProjectModal({ project, isOpen, onClose, onUpdated }
             value={form.dueDate}
             onChange={(e) => update('dueDate', e.target.value)}
             error={errors.dueDate}
-            required
           />
         </div>
 

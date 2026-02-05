@@ -2,7 +2,8 @@
 
 import { api } from '@/lib/api';
 import { useAlerts } from '@/context/AlertContext';
-import { handleApiError, useFormState } from '@/hooks';
+import { handleApiError, useFormState, useValidation } from '@/hooks';
+import { passwordRules } from './validation';
 import { Card, Button, Input } from '@/components/ui';
 import { getCurrentUser } from '@/lib/auth';
 
@@ -21,27 +22,12 @@ const EMPTY_FORM: PasswordForm = {
 export default function SettingsPage() {
   const { showSuccess, showError } = useAlerts();
   const currentUser = getCurrentUser();
-  const { form, setForm, errors, setErrors, loading, setLoading, update } = useFormState<PasswordForm>(EMPTY_FORM);
-
-  const validate = (): boolean => {
-    const e: Partial<Record<keyof PasswordForm, string>> = {};
-    if (!form.currentPassword) e.currentPassword = 'Current password is required';
-    if (!form.newPassword || form.newPassword.length < 6) {
-      e.newPassword = 'New password must be at least 6 characters';
-    }
-    if (form.newPassword !== form.confirmPassword) {
-      e.confirmPassword = 'Passwords do not match';
-    }
-    if (form.currentPassword && form.newPassword && form.currentPassword === form.newPassword) {
-      e.newPassword = 'New password must be different from current';
-    }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
+  const { form, setForm, loading, setLoading, update } = useFormState<PasswordForm>(EMPTY_FORM);
+  const { errors, validate } = useValidation<PasswordForm>(passwordRules);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate(form)) return;
 
     setLoading(true);
     try {
@@ -87,7 +73,7 @@ export default function SettingsPage() {
         {/* Change Password */}
         <Card>
           <h3 className="text-lg font-semibold text-text-primary mb-4">Change Password</h3>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
             <Input
               id="current-password"
               label="Current Password"
@@ -95,7 +81,6 @@ export default function SettingsPage() {
               value={form.currentPassword}
               onChange={(e) => update('currentPassword', e.target.value)}
               error={errors.currentPassword}
-              required
             />
             <Input
               id="new-password"
@@ -104,7 +89,6 @@ export default function SettingsPage() {
               value={form.newPassword}
               onChange={(e) => update('newPassword', e.target.value)}
               error={errors.newPassword}
-              required
             />
             <Input
               id="confirm-password"
@@ -113,7 +97,6 @@ export default function SettingsPage() {
               value={form.confirmPassword}
               onChange={(e) => update('confirmPassword', e.target.value)}
               error={errors.confirmPassword}
-              required
             />
             <div className="flex justify-end">
               <Button type="submit" isLoading={loading}>

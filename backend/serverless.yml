@@ -285,11 +285,13 @@ resources:
             var request = event.request;
             var uri = request.uri;
             if (uri === '/') return request;
-            if (uri.endsWith('/')) {
-              request.uri = uri.slice(0, -1) + '.html';
-            } else if (!uri.includes('.')) {
-              request.uri = uri + '.html';
+            if (uri.endsWith('/')) uri = uri.slice(0, -1);
+            if (uri.includes('.')) return request;
+            if (/^\/projects\/[^\/]+$/.test(uri)) {
+              request.uri = '/projects/_.html';
+              return request;
             }
+            request.uri = uri + '.html';
             return request;
           }
 

@@ -2,8 +2,8 @@ const { GetCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { docClient, TABLE_NAME } = require('../shared/dynamo');
-const { success, error, withErrorHandler } = require('../shared/response');
-const { AppError, UnauthorizedError, ValidationError } = require('../shared/errors');
+const { success, withErrorHandler, parseBody } = require('../shared/response');
+const { UnauthorizedError, ValidationError } = require('../shared/errors');
 const { withAuth } = require('./middleware');
 const { loginSchema, changePasswordSchema } = require('./validator');
 
@@ -29,48 +29,40 @@ const generateToken = (user) =>
   );
 
 const login = async (event) => {
-  try {
-    const body = JSON.parse(event.body || '{}');
+  const body = parseBody(event);
 
-    const result = loginSchema.safeParse(body);
-    if (!result.success) {
-      throw new ValidationError(result.error.issues[0]?.message || 'Invalid data');
-    }
-
-    const { email, password } = result.data;
-
-    const user = await findUserByEmail(email);
-    if (!user) {
-      throw new UnauthorizedError();
-    }
-
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      throw new UnauthorizedError();
-    }
-
-    const token = generateToken(user);
-
-    return success({
-      token,
-      user: {
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-    });
-  } catch (err) {
-    if (err instanceof AppError) {
-      return error(err.message, err.statusCode);
-    }
-    console.error('Login error:', err);
-    return error('Internal server error', 500);
+  const result = loginSchema.safeParse(body);
+  if (!result.success) {
+    throw new ValidationError(result.error.issues[0]?.message || 'Invalid data');
   }
+
+  const { email, password } = result.data;
+
+  const user = await findUserByEmail(email);
+  if (!user) {
+    throw new UnauthorizedError();
+  }
+
+  const isValidPassword = await bcrypt.compare(password, user.password);
+  if (!isValidPassword) {
+    throw new UnauthorizedError();
+  }
+
+  const token = generateToken(user);
+
+  return success({
+    token,
+    user: {
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    },
+  });
 };
 
 const changePassword = async (event) => {
   const { email } = event.user;
-  const body = JSON.parse(event.body || '{}');
+  const body = parseBody(event);
 
   const result = changePasswordSchema.safeParse(body);
   if (!result.success) {
@@ -101,6 +93,6 @@ const changePassword = async (event) => {
 };
 
 module.exports = {
-  login,
+  login: withErrorHandler('Login', login),
   changePassword: withAuth(withErrorHandler('Change password', changePassword)),
 };

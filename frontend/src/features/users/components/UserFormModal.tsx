@@ -4,6 +4,7 @@ import { memo, useEffect, useMemo } from 'react';
 import { api, type TeamUser } from '@/lib/api';
 import { useAlerts } from '@/context/AlertContext';
 import { handleApiError, useFormState, useValidation } from '@/hooks';
+import { userRules } from '../validation';
 import { Button, Input, Select, Modal } from '@/components/ui';
 
 interface UserFormData {
@@ -31,11 +32,7 @@ export default memo(function UserFormModal({
   const { showSuccess, showError } = useAlerts();
   const { form, setForm, loading, setLoading, update } = useFormState<UserFormData>(EMPTY_FORM);
 
-  const rules = useMemo(() => ({
-    name: (v: string) => !v.trim() ? 'Name is required' : undefined,
-    email: (v: string) => mode === 'create' && !v.trim() ? 'Email is required' : undefined,
-    password: (v: string) => mode === 'create' && (!v || v.length < 6) ? 'Min 6 characters' : undefined,
-  }), [mode]);
+  const rules = useMemo(() => userRules(mode), [mode]);
 
   const { errors, setErrors, validate, clearErrors } = useValidation<UserFormData>(rules);
 
@@ -86,14 +83,13 @@ export default memo(function UserFormModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={mode === 'edit' ? 'Edit User' : 'Create User'} maxWidth="sm">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <Input
           id="user-name"
           label="Name"
           value={form.name}
           onChange={(e) => update('name', e.target.value)}
           error={errors.name}
-          required
         />
 
         {mode === 'create' && (
@@ -104,7 +100,6 @@ export default memo(function UserFormModal({
             value={form.email}
             onChange={(e) => update('email', e.target.value)}
             error={errors.email}
-            required
           />
         )}
 
@@ -128,7 +123,6 @@ export default memo(function UserFormModal({
             value={form.password}
             onChange={(e) => update('password', e.target.value)}
             error={errors.password}
-            required
           />
         )}
 

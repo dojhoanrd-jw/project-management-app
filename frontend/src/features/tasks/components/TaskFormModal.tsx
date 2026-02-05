@@ -4,6 +4,7 @@ import { memo, useEffect, useMemo } from 'react';
 import { api, type Task, type Project, type ProjectMember } from '@/lib/api';
 import { useAlerts } from '@/context/AlertContext';
 import { handleApiError, useFormState, useValidation } from '@/hooks';
+import { taskRules } from '../validation';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS, TASK_CATEGORY_OPTIONS } from '@/lib/constants';
 import { Button, Input, Textarea, Select, Modal } from '@/components/ui';
 
@@ -48,20 +49,7 @@ export default memo(function TaskFormModal({
   const { showSuccess, showError } = useAlerts();
   const { form, setForm, loading, setLoading, update } = useFormState(INITIAL_FORM);
 
-  const rules = useMemo(() => ({
-    title: (v: string) => !v.trim() ? 'Title is required' : undefined,
-    projectId: (v: string) => projects && !v ? 'Project is required' : undefined,
-    assigneeId: (v: string) => !v ? 'Assignee is required' : undefined,
-    estimatedHours: (v: string) => !v || Number(v) < 0.5 ? 'Min 0.5 hours' : undefined,
-    dueDate: (v: string) => {
-      if (!v) return 'Due date is required';
-      if (mode === 'create') {
-        const today = new Date().toISOString().split('T')[0];
-        if (v < today) return 'Due date cannot be in the past';
-      }
-      return undefined;
-    },
-  }), [projects, mode]);
+  const rules = useMemo(() => taskRules({ projects, mode }), [projects, mode]);
 
   const { errors, setErrors, validate, clearErrors } = useValidation<TaskFormData>(rules);
 
@@ -143,14 +131,13 @@ export default memo(function TaskFormModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={mode === 'edit' ? 'Edit Task' : 'Create Task'} maxWidth="md">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <Input
           id="tf-title"
           label="Title"
           value={form.title}
           onChange={(e) => update('title', e.target.value)}
           error={errors.title}
-          required
         />
 
         <Textarea
@@ -224,7 +211,6 @@ export default memo(function TaskFormModal({
             value={form.estimatedHours}
             onChange={(e) => update('estimatedHours', e.target.value)}
             error={errors.estimatedHours}
-            required
           />
         </div>
 
@@ -236,7 +222,6 @@ export default memo(function TaskFormModal({
           value={form.dueDate}
           onChange={(e) => update('dueDate', e.target.value)}
           error={errors.dueDate}
-          required
         />
 
         <div className="mt-2 flex justify-end gap-3">

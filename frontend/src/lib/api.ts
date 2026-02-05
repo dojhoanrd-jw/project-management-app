@@ -48,8 +48,11 @@ async function request<T = unknown>(path: string, options: RequestInit = {}): Pr
   }
 
   if (res.status === 401) {
-    handleUnauthorized();
-    throw new ApiError('Session expired', 401);
+    const h = options.headers as Record<string, string> | undefined;
+    if (h?.['Authorization']) {
+      handleUnauthorized();
+      throw new ApiError('Session expired', 401);
+    }
   }
 
   let data: unknown;
