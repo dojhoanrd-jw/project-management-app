@@ -1,6 +1,9 @@
-import { type ReactNode } from 'react';
+'use client';
+
+import { type ReactNode, useState, useEffect } from 'react';
 import Card from './Card';
-import { EditIcon, TrashIcon } from '@/components/icons';
+import { EditIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
+import { useTranslation } from '@/context/I18nContext';
 
 export interface Column<T> {
   header: string;
@@ -12,9 +15,21 @@ interface DataTableProps<T> {
   columns: Column<T>[];
   data: T[];
   keyExtractor: (item: T) => string;
+  pageSize?: number;
 }
 
-export default function DataTable<T>({ columns, data, keyExtractor }: DataTableProps<T>) {
+export default function DataTable<T>({ columns, data, keyExtractor, pageSize = 8 }: DataTableProps<T>) {
+  const { t } = useTranslation();
+  const [page, setPage] = useState(0);
+
+  const totalPages = Math.ceil(data.length / pageSize);
+  const start = page * pageSize;
+  const pageData = data.slice(start, start + pageSize);
+  const showPagination = data.length > pageSize;
+
+  // Reset to first page when data changes (e.g. filters applied)
+  useEffect(() => { setPage(0); }, [data.length]);
+
   return (
     <Card className="overflow-x-auto">
       <table className="w-full text-left text-sm">
@@ -31,10 +46,10 @@ export default function DataTable<T>({ columns, data, keyExtractor }: DataTableP
           </tr>
         </thead>
         <tbody>
-          {data.map((item, idx) => (
+          {pageData.map((item, idx) => (
             <tr
               key={keyExtractor(item)}
-              className={idx < data.length - 1 ? 'border-b border-border/50' : ''}
+              className={idx < pageData.length - 1 ? 'border-b border-border/50' : ''}
             >
               {columns.map((col, i) => (
                 <td key={i} className={`py-3 ${i < columns.length - 1 ? 'pr-4' : ''}`}>
@@ -45,6 +60,37 @@ export default function DataTable<T>({ columns, data, keyExtractor }: DataTableP
           ))}
         </tbody>
       </table>
+
+      {showPagination && (
+        <div className="flex items-center justify-between border-t border-border pt-3 mt-3">
+          <p className="text-xs text-text-muted">
+            {t('table.showing', {
+              from: String(start + 1),
+              to: String(Math.min(start + pageSize, data.length)),
+              total: String(data.length),
+            })}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(page - 1)}
+              disabled={page === 0}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeftIcon />
+            </button>
+            <span className="px-2 text-xs text-text-secondary">
+              {page + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(page + 1)}
+              disabled={page >= totalPages - 1}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRightIcon />
+            </button>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

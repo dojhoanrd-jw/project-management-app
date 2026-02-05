@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import useSWR, { useSWRConfig } from 'swr';
 import { type Project, type Task } from '@/lib/api';
 import { useTranslation } from '@/context/I18nContext';
@@ -9,10 +9,11 @@ import { ProjectHeader, ProjectInfoCards, ProjectTasks, ProjectMembers } from '.
 
 export default function ProjectDetailPage() {
   const { t, locale } = useTranslation();
-  const params = useParams();
+  const pathname = usePathname();
   const router = useRouter();
   const { mutate } = useSWRConfig();
-  const projectId = params.projectId as string;
+  // useParams() returns '_' in static export — read from actual URL instead
+  const projectId = pathname.split('/').pop() || '';
 
   const { data, isLoading } = useSWR<{ project: Project; tasks: Task[] }>(
     projectId && projectId !== '_' ? `/projects/${projectId}` : null
@@ -20,7 +21,7 @@ export default function ProjectDetailPage() {
 
   const revalidate = () => mutate(`/projects/${projectId}`);
 
-  if (isLoading || projectId === '_') {
+  if (isLoading || !projectId || projectId === '_') {
     return (
       <div className="flex flex-col gap-6">
         <div className="h-24 animate-pulse rounded-2xl bg-surface" />
