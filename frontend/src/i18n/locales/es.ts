@@ -109,7 +109,7 @@ const es: Record<string, string> = {
   // ── Página de Proyectos ──
   'projects.title': 'Proyectos',
   'projects.subtitle': 'Gestiona y realiza seguimiento de todos tus proyectos',
-  'projects.newProject': '+ Nuevo proyecto',
+  'projects.newProject': 'Nuevo proyecto',
   'projects.noProjectsYet': 'Aún no hay proyectos',
   'projects.noProjectsDesc': 'Crea tu primer proyecto para comenzar a gestionar tareas y progreso.',
   'projects.createProject': 'Crear proyecto',
@@ -147,7 +147,7 @@ const es: Record<string, string> = {
   'tasks.addTask': 'Agregar tarea',
   'tasks.noTasksYet': 'Aún no hay tareas',
   'tasks.noTasksDesc': 'Crea tu primera tarea para comenzar.',
-  'tasks.createTask': '+ Crear tarea',
+  'tasks.createTask': 'Crear tarea',
   'tasks.noTasksMatch': 'Ninguna tarea coincide con los filtros seleccionados.',
   'tasks.allProjects': 'Todos los proyectos',
   'tasks.allAssignees': 'Todos los asignados',
