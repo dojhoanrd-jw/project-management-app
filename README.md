@@ -227,64 +227,100 @@ project-management-app/
 ## Configuración para Desarrollo Local
 
 ### Prerequisitos
-- Node.js 18+
-- Docker (para DynamoDB Local)
+- [Node.js](https://nodejs.org/) 18 o superior
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — necesario para correr DynamoDB Local (la base de datos en tu máquina)
+
+> **¿Por qué Docker?** En producción la app usa DynamoDB en AWS. Para desarrollo local, Amazon provee [DynamoDB Local](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html), una versión que corre en tu máquina dentro de un contenedor Docker. No necesitas cuenta de AWS para desarrollo local.
 
 ### 1. Clonar e Instalar
 
 ```bash
 git clone <repo-url>
 cd project-management-app
+
+# Instala dependencias del frontend (npm workspaces) y del backend
 npm run install:all
 ```
 
 ### 2. Configurar Variables de Entorno
 
-**Backend** — Copiar y editar:
+**Backend** — Crear archivo `.env` desde el ejemplo:
 ```bash
 cp backend/.env.example backend/.env
 ```
 
+El archivo debe contener:
 ```env
 JWT_SECRET=your-secret-key-here
 DYNAMO_LOCAL=true
 ```
 
-**Frontend** — Copiar:
+- `JWT_SECRET` — Clave para firmar tokens de autenticación (cualquier string sirve para desarrollo)
+- `DYNAMO_LOCAL=true` — Le indica al backend que se conecte a DynamoDB Local (`http://localhost:8000`) en vez de AWS
+
+**Frontend** — Crear archivo `.env.local` desde el ejemplo:
 ```bash
 cp frontend/.env.example frontend/.env.local
 ```
 
+El archivo debe contener:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
+Esto apunta el frontend a la API local del backend.
+
 ### 3. Iniciar DynamoDB Local y Poblar Datos
 
+**Primero**, asegúrate de que Docker Desktop esté corriendo (abre la app Docker Desktop).
+
+**Después**, ejecuta estos comandos:
+
 ```bash
-# Iniciar DynamoDB Local con Docker
+# 1. Descargar e iniciar DynamoDB Local en segundo plano (puerto 8000)
 docker run -d -p 8000:8000 amazon/dynamodb-local
 
-# Crear la tabla + insertar datos de prueba (un solo comando)
+# 2. Crear la tabla y poblar datos de prueba
 cd backend && npm run setup:local
 ```
 
-Esto crea la tabla `AppData-prod` con su esquema (PK, SK, GSI1) e inserta 4 usuarios, 4 proyectos y 15 tareas de ejemplo.
+El comando `setup:local` hace dos cosas:
+1. **Crea la tabla** `AppData-prod` con su esquema (PK, SK, GSI1)
+2. **Inserta datos de prueba**: 4 usuarios, 4 proyectos y 15 tareas de ejemplo
+
+Si ves el mensaje `Seed completed!` todo está listo.
+
+> **Nota:** Si cierras Docker, los datos se pierden. Vuelve a correr `docker run ...` y `npm run setup:local` para restaurarlos.
 
 ### 4. Iniciar Desarrollo
+
+Desde la raíz del proyecto:
 
 ```bash
 # Backend + frontend simultáneamente
 npm run dev
-
-# O por separado
-npm run dev:backend    # API en http://localhost:3000
-npm run dev:frontend   # Web en http://localhost:3001
 ```
 
-El backend corre con `serverless-offline`, que emula API Gateway + Lambda localmente. Se conecta a DynamoDB Local en `http://localhost:8000`.
+Esto levanta:
+- **API** en `http://localhost:3000` — Backend con serverless-offline (emula API Gateway + Lambda)
+- **Web** en `http://localhost:3001` — Frontend Next.js con hot reload
 
-**Credenciales de prueba:** Ver la sección [Demo en Vivo](#demo-en-vivo).
+También puedes ejecutarlos por separado:
+```bash
+npm run dev:backend    # Solo API en http://localhost:3000
+npm run dev:frontend   # Solo Web en http://localhost:3001
+```
+
+### 5. Acceder a la App
+
+Abre `http://localhost:3001` en tu navegador y usa cualquiera de estas credenciales:
+
+| Email | Contraseña | Rol |
+|-------|------------|-----|
+| admin@demo.com | admin123 | Admin — acceso total |
+| sarah@demo.com | sarah123 | Project Manager |
+| john@demo.com | john1234 | Member |
+| maria@demo.com | maria123 | Member |
 
 ---
 
