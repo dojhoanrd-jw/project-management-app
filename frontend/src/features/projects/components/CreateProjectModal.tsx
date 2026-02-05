@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { api, type TeamUser } from '@/lib/api';
-import { ApiError, NetworkError } from '@/lib/errors';
 import { useAlerts } from '@/context/AlertContext';
-import { Button, Input } from '@/components/ui';
-import Modal from '@/components/ui/Modal';
+import { handleApiError, useFormState, useValidation } from '@/hooks';
+import { PROJECT_STATUS_OPTIONS } from '@/lib/constants';
+import { Button, Input, Textarea, Select, Modal } from '@/components/ui';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -13,15 +13,15 @@ interface CreateProjectModalProps {
   onCreated: () => void;
 }
 
-interface FormData {
+interface ProjectFormData {
   name: string;
   description: string;
-  status: 'active' | 'paused';
+  status: string;
   managerId: string;
   dueDate: string;
 }
 
-const initialForm: FormData = {
+const INITIAL_FORM: ProjectFormData = {
   name: '',
   description: '',
   status: 'active',
@@ -29,13 +29,19 @@ const initialForm: FormData = {
   dueDate: '',
 };
 
-export default function CreateProjectModal({ isOpen, onClose, onCreated }: CreateProjectModalProps) {
+export default memo(function CreateProjectModal({ isOpen, onClose, onCreated }: CreateProjectModalProps) {
   const { showSuccess, showError } = useAlerts();
-  const [form, setForm] = useState<FormData>(initialForm);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
-  const [loading, setLoading] = useState(false);
+  const { form, loading, setLoading, update, reset } = useFormState(INITIAL_FORM);
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+
+  const rules = useMemo(() => ({
+    name: (v: string) => !v.trim() ? 'Project name is required' : undefined,
+    managerId: (v: string) => !v ? 'Project manager is required' : undefined,
+    dueDate: (v: string) => !v ? 'Due date is required' : undefined,
+  }), []);
+
+  const { errors, validate, clearErrors } = useValidation<ProjectFormData>(rules);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -57,23 +63,9 @@ export default function CreateProjectModal({ isOpen, onClose, onCreated }: Creat
     return () => { cancelled = true; };
   }, [isOpen, showError]);
 
-  const update = (field: keyof FormData, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
-
-  const validate = (): boolean => {
-    const e: Partial<Record<keyof FormData, string>> = {};
-    if (!form.name.trim()) e.name = 'Project name is required';
-    if (!form.managerId) e.managerId = 'Project manager is required';
-    if (!form.dueDate) e.dueDate = 'Due date is required';
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate(form)) return;
 
     const selectedManager = users.find((u) => u.email === form.managerId);
 
@@ -88,18 +80,11 @@ export default function CreateProjectModal({ isOpen, onClose, onCreated }: Creat
         dueDate: form.dueDate,
       });
       showSuccess('Project created successfully');
-      setForm(initialForm);
-      setErrors({});
+      reset();
       onCreated();
       onClose();
     } catch (err) {
-      if (err instanceof NetworkError) {
-        showError('No connection. Check your internet.');
-      } else if (err instanceof ApiError) {
-        showError(err.message);
-      } else {
-        showError('Unexpected error creating project');
-      }
+      handleApiError(err, showError, 'creating project');
     } finally {
       setLoading(false);
     }
@@ -107,13 +92,11 @@ export default function CreateProjectModal({ isOpen, onClose, onCreated }: Creat
 
   const handleClose = () => {
     if (!loading) {
-      setForm(initialForm);
-      setErrors({});
+      reset();
+      clearErrors();
       onClose();
     }
   };
-
-  const selectClasses = `w-full rounded-lg border bg-surface px-4 py-2.5 text-sm text-text-primary outline-none transition-colors focus:border-accent cursor-pointer`;
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="New Project" maxWidth="md">
@@ -128,36 +111,24 @@ export default function CreateProjectModal({ isOpen, onClose, onCreated }: Creat
           required
         />
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="project-desc" className="text-sm font-medium text-text-primary">
-            Description
-          </label>
-          <textarea
-            id="project-desc"
-            placeholder="Brief description of the project..."
-            value={form.description}
-            onChange={(e) => update('description', e.target.value)}
-            rows={3}
-            maxLength={500}
-            className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent resize-none"
-          />
-        </div>
+        <Textarea
+          id="project-desc"
+          label="Description"
+          placeholder="Brief description of the project..."
+          value={form.description}
+          onChange={(e) => update('description', e.target.value)}
+          rows={3}
+          maxLength={500}
+        />
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="project-status" className="text-sm font-medium text-text-primary">
-              Status
-            </label>
-            <select
-              id="project-status"
-              value={form.status}
-              onChange={(e) => update('status', e.target.value)}
-              className={`${selectClasses} border-border`}
-            >
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-            </select>
-          </div>
+          <Select
+            id="project-status"
+            label="Status"
+            value={form.status}
+            onChange={(e) => update('status', e.target.value)}
+            options={PROJECT_STATUS_OPTIONS}
+          />
 
           <Input
             id="project-due"
@@ -170,30 +141,21 @@ export default function CreateProjectModal({ isOpen, onClose, onCreated }: Creat
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="project-manager" className="text-sm font-medium text-text-primary">
-            Project Manager
-          </label>
-          <select
-            id="project-manager"
-            value={form.managerId}
-            onChange={(e) => update('managerId', e.target.value)}
-            disabled={loadingUsers}
-            className={`${selectClasses} ${errors.managerId ? 'border-status-delayed' : 'border-border'}`}
-          >
-            <option value="">
-              {loadingUsers ? 'Loading...' : 'Select a project manager'}
+        <Select
+          id="project-manager"
+          label="Project Manager"
+          value={form.managerId}
+          onChange={(e) => update('managerId', e.target.value)}
+          disabled={loadingUsers}
+          error={errors.managerId}
+          placeholder={loadingUsers ? 'Loading...' : 'Select a project manager'}
+        >
+          {users.map((user) => (
+            <option key={user.email} value={user.email}>
+              {user.name} ({user.role})
             </option>
-            {users.map((user) => (
-              <option key={user.email} value={user.email}>
-                {user.name} ({user.role})
-              </option>
-            ))}
-          </select>
-          {errors.managerId && (
-            <p className="text-xs text-status-delayed">{errors.managerId}</p>
-          )}
-        </div>
+          ))}
+        </Select>
 
         <div className="mt-2 flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={handleClose} disabled={loading}>
@@ -206,4 +168,4 @@ export default function CreateProjectModal({ isOpen, onClose, onCreated }: Creat
       </form>
     </Modal>
   );
-}
+});

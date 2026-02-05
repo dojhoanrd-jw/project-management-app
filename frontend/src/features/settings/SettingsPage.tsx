@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { api } from '@/lib/api';
-import { ApiError, NetworkError } from '@/lib/errors';
 import { useAlerts } from '@/context/AlertContext';
+import { handleApiError, useFormState } from '@/hooks';
 import { Card, Button, Input } from '@/components/ui';
 import { getCurrentUser } from '@/lib/auth';
 
@@ -22,14 +21,7 @@ const EMPTY_FORM: PasswordForm = {
 export default function SettingsPage() {
   const { showSuccess, showError } = useAlerts();
   const currentUser = getCurrentUser();
-  const [form, setForm] = useState<PasswordForm>(EMPTY_FORM);
-  const [errors, setErrors] = useState<Partial<Record<keyof PasswordForm, string>>>({});
-  const [loading, setLoading] = useState(false);
-
-  const update = (field: keyof PasswordForm, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
+  const { form, setForm, errors, setErrors, loading, setLoading, update } = useFormState<PasswordForm>(EMPTY_FORM);
 
   const validate = (): boolean => {
     const e: Partial<Record<keyof PasswordForm, string>> = {};
@@ -57,13 +49,7 @@ export default function SettingsPage() {
       showSuccess('Password changed successfully');
       setForm(EMPTY_FORM);
     } catch (err) {
-      if (err instanceof NetworkError) {
-        showError('No connection. Check your internet.');
-      } else if (err instanceof ApiError) {
-        showError(err.message);
-      } else {
-        showError('Unexpected error changing password');
-      }
+      handleApiError(err, showError, 'changing password');
     } finally {
       setLoading(false);
     }

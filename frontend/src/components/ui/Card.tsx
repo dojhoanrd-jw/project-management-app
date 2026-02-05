@@ -1,4 +1,4 @@
-import { type HTMLAttributes } from 'react';
+import { memo, type HTMLAttributes } from 'react';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   padding?: 'sm' | 'md' | 'lg';
@@ -10,7 +10,7 @@ const paddingStyles = {
   lg: 'p-8',
 };
 
-export default function Card({ padding = 'md', className = '', children, ...props }: CardProps) {
+export default memo(function Card({ padding = 'md', className = '', children, ...props }: CardProps) {
   return (
     <div
       className={`rounded-2xl bg-surface border border-border-light shadow-sm ${paddingStyles[padding]} ${className}`}
@@ -19,4 +19,4 @@ export default function Card({ padding = 'md', className = '', children, ...prop
       {children}
     </div>
   );
-}
+})

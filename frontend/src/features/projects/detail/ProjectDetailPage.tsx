@@ -1,42 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { api, type Project, type Task } from '@/lib/api';
-import { useAlerts } from '@/context/AlertContext';
+import useSWR, { useSWRConfig } from 'swr';
+import { type Project, type Task } from '@/lib/api';
 import { Card, Button } from '@/components/ui';
-import ProjectHeader from './components/ProjectHeader';
-import ProjectInfoCards from './components/ProjectInfoCards';
-import ProjectTasks from './components/ProjectTasks';
-import ProjectMembers from './components/ProjectMembers';
+import { ProjectHeader, ProjectInfoCards, ProjectTasks, ProjectMembers } from './components';
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { showError } = useAlerts();
-  const [project, setProject] = useState<Project | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-
+  const { mutate } = useSWRConfig();
   const projectId = params.projectId as string;
 
-  const fetchProject = useCallback(async () => {
-    try {
-      const data = await api.getProject(projectId);
-      setProject(data.project);
-      setTasks(data.tasks);
-    } catch {
-      showError('Failed to load project');
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, showError]);
+  const { data, isLoading } = useSWR<{ project: Project; tasks: Task[] }>(`/projects/${projectId}`);
 
-  useEffect(() => {
-    fetchProject();
-  }, [fetchProject]);
+  const revalidate = () => mutate(`/projects/${projectId}`);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-6">
         <div className="h-24 animate-pulse rounded-2xl bg-surface" />
@@ -52,7 +32,7 @@ export default function ProjectDetailPage() {
     );
   }
 
-  if (!project) {
+  if (!data) {
     return (
       <Card className="flex flex-col items-center justify-center py-16 text-center">
         <h3 className="text-lg font-medium text-text-primary">Project not found</h3>
@@ -63,12 +43,14 @@ export default function ProjectDetailPage() {
     );
   }
 
+  const { project, tasks } = data;
+
   return (
     <div className="flex flex-col gap-8">
-      <ProjectHeader project={project} onUpdated={fetchProject} />
+      <ProjectHeader project={project} onUpdated={revalidate} />
       <ProjectInfoCards project={project} />
-      <ProjectMembers project={project} onUpdated={fetchProject} />
-      <ProjectTasks projectId={projectId} tasks={tasks} members={project.members || []} onTaskChanged={fetchProject} userRole={project.currentUserRole} />
+      <ProjectMembers project={project} onUpdated={revalidate} />
+      <ProjectTasks projectId={projectId} tasks={tasks} members={project.members || []} onTaskChanged={revalidate} userRole={project.currentUserRole} />
     </div>
   );
 }

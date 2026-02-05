@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 type BadgeVariant = 'completed' | 'ongoing' | 'at_risk' | 'delayed' | 'review' | 'default';
 
 interface BadgeProps {
@@ -15,7 +17,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   default: 'bg-border-light text-text-secondary',
 };
 
-export default function Badge({ variant = 'default', className = '', children }: BadgeProps) {
+export default memo(function Badge({ variant = 'default', className = '', children }: BadgeProps) {
   return (
     <span
       className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${variantStyles[variant]} ${className}`}
@@ -23,4 +25,4 @@ export default function Badge({ variant = 'default', className = '', children }:
       {children}
     </span>
   );
-}
+});

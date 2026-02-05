@@ -1,10 +1,26 @@
 import { ApiError, NetworkError } from './errors';
+import { storage } from './storage';
+import type {
+  LoginResponse,
+  OverviewResponse,
+  ProgressResponse,
+  ProjectsSummaryResponse,
+  TodayTasksResponse,
+  WorkloadResponse,
+  ProjectMember,
+  Project,
+  Task,
+  CreateProjectPayload,
+  CreateTaskPayload,
+  TeamUser,
+} from './types';
+
+export type { ProjectMember, Project, CreateProjectPayload, Task, CreateTaskPayload, TeamUser } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 const getToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token');
+  return storage.getToken();
 };
 
 const buildHeaders = (withAuth = true): Record<string, string> => {
@@ -18,8 +34,7 @@ const buildHeaders = (withAuth = true): Record<string, string> => {
 
 function handleUnauthorized(): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
+  storage.clearSession();
   window.location.href = '/';
 }
 
@@ -57,86 +72,9 @@ async function request<T = unknown>(path: string, options: RequestInit = {}): Pr
   return data as T;
 }
 
-import type {
-  OverviewResponse,
-  ProgressResponse,
-  ProjectsSummaryResponse,
-  TodayTasksResponse,
-  WorkloadResponse,
-} from '@/features/dashboard/dashboard.types';
-
-interface LoginResponse {
-  token: string;
-  user: { id: string; name: string; email: string; role: string };
-}
-
-export interface ProjectMember {
-  email: string;
-  name: string;
-  role: string;
-}
-
-export interface Project {
-  projectId: string;
-  name: string;
-  description: string;
-  status: string;
-  progress: string;
-  managerId: string;
-  managerName: string;
-  dueDate: string;
-  totalTasks: number;
-  completedTasks: number;
-  completionPercent: number;
-  totalHours: number;
-  members?: ProjectMember[];
-  currentUserRole?: string;
-  createdAt: string;
-}
-
-export interface CreateProjectPayload {
-  name: string;
-  description: string;
-  status: string;
-  managerId: string;
-  managerName: string;
-  dueDate: string;
-}
-
-export interface Task {
-  taskId: string;
-  title: string;
-  description: string;
-  projectId: string;
-  projectName: string;
-  status: string;
-  priority: string;
-  category: string;
-  assigneeId: string;
-  assigneeName: string;
-  estimatedHours: number;
-  dueDate: string;
-  createdAt: string;
-}
-
-export interface CreateTaskPayload {
-  title: string;
-  description?: string;
-  projectId: string;
-  status?: string;
-  priority?: string;
-  category?: string;
-  assigneeId: string;
-  assigneeName: string;
-  estimatedHours: number;
-  dueDate: string;
-}
-
-export interface TeamUser {
-  email: string;
-  name: string;
-  role: string;
-}
+/** SWR-compatible fetcher — pass as the global fetcher in SWRConfig. */
+export const swrFetcher = <T>(path: string): Promise<T> =>
+  request<T>(path, { headers: buildHeaders() });
 
 export const api = {
   login: (email: string, password: string) =>

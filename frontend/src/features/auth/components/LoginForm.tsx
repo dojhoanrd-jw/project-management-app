@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { ApiError, NetworkError } from '@/lib/errors';
+import { storage } from '@/lib/storage';
 import { useAlerts } from '@/context/AlertContext';
+import { handleApiError } from '@/hooks';
 import { Button, Input, Card } from '@/components/ui';
+import { AddUserIcon } from '@/components/icons';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -20,17 +22,11 @@ export default function LoginForm() {
 
     try {
       const data = await api.login(email, password);
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      storage.setToken(data.token);
+      storage.setUser(data.user);
       router.push('/dashboard');
     } catch (err) {
-      if (err instanceof NetworkError) {
-        showError('No connection. Check your internet.');
-      } else if (err instanceof ApiError) {
-        showError(err.message);
-      } else {
-        showError('Unexpected error while signing in');
-      }
+      handleApiError(err, showError, 'signing in');
     } finally {
       setLoading(false);
     }
@@ -40,9 +36,7 @@ export default function LoginForm() {
     <Card padding="md" className="w-full max-w-sm sm:p-8">
       <div className="mb-6">
         <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-accent-light">
-          <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3zm6 2a2 2 0 100-4 2 2 0 000 4zm-6 7s-6 0-6-3c0-2 6-2 6-2s6 0 6 2c0 3-6 3-6 3zm9-3c0 1-2 2-3 2" />
-          </svg>
+          <AddUserIcon className="h-5 w-5 text-accent" />
         </div>
         <h1 className="text-xl font-semibold text-text-primary">Welcome back</h1>
         <p className="mt-1 text-sm text-text-secondary">Sign in to your account</p>
@@ -74,9 +68,11 @@ export default function LoginForm() {
         </Button>
       </form>
 
-      <p className="mt-5 text-center text-xs text-text-muted">
-        Demo credentials: admin@demo.com / admin123
-      </p>
+      {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && (
+        <p className="mt-5 text-center text-xs text-text-muted">
+          Demo credentials: admin@demo.com / admin123
+        </p>
+      )}
     </Card>
   );
 }

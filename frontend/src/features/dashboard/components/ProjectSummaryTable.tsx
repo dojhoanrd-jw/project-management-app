@@ -1,7 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { memo, useMemo } from 'react';
 import { StatusBadge, ProgressCircle } from '@/components/ui';
+import { ChevronDownIcon } from '@/components/icons';
+import { formatDate, PILL_SELECT_CLASSES } from '@/lib/constants';
+import { useFilterState } from '@/hooks';
 import type { ProjectSummary } from '../dashboard.types';
 
 interface ProjectSummaryTableProps {
@@ -18,23 +21,17 @@ const STATUS_LABELS: Record<string, string> = {
   in_review: 'In review',
 };
 
-const DropdownArrow = (
-  <svg className="h-4 w-4 text-text-secondary pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-  </svg>
-);
-
-const selectClasses = 'appearance-none rounded-full bg-white pl-4 pr-8 py-1.5 text-sm font-medium text-text-primary shadow-sm outline-none cursor-pointer';
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-export default function ProjectSummaryTable({ projects }: ProjectSummaryTableProps) {
-  const [projectFilter, setProjectFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [managerFilter, setManagerFilter] = useState('all');
+export default memo(function ProjectSummaryTable({ projects }: ProjectSummaryTableProps) {
+  const { filters, filtered, updateFilter } = useFilterState(
+    projects,
+    { project: 'all', status: 'all', manager: 'all' },
+    (p, f) => {
+      if (f.project !== 'all' && p.name !== f.project) return false;
+      if (f.status !== 'all' && p.status !== f.status) return false;
+      if (f.manager !== 'all' && p.managerName !== f.manager) return false;
+      return true;
+    },
+  );
 
   const projectNames = useMemo(
     () => [...new Set(projects.map((p) => p.name))],
@@ -51,15 +48,6 @@ export default function ProjectSummaryTable({ projects }: ProjectSummaryTablePro
     [projects],
   );
 
-  const filtered = useMemo(() => {
-    return projects.filter((p) => {
-      if (projectFilter !== 'all' && p.name !== projectFilter) return false;
-      if (statusFilter !== 'all' && p.status !== statusFilter) return false;
-      if (managerFilter !== 'all' && p.managerName !== managerFilter) return false;
-      return true;
-    });
-  }, [projects, projectFilter, statusFilter, managerFilter]);
-
   return (
     <div className="rounded-2xl bg-surface p-5">
       {/* Header + filters */}
@@ -70,46 +58,46 @@ export default function ProjectSummaryTable({ projects }: ProjectSummaryTablePro
           {/* Project filter */}
           <div className="relative">
             <select
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              className={selectClasses}
+              value={filters.project}
+              onChange={(e) => updateFilter('project', e.target.value)}
+              className={PILL_SELECT_CLASSES}
             >
               <option value="all">Project</option>
               {projectNames.map((name) => (
                 <option key={name} value={name}>{name}</option>
               ))}
             </select>
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2">{DropdownArrow}</span>
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2"><ChevronDownIcon className="h-4 w-4 text-text-secondary pointer-events-none" /></span>
           </div>
 
           {/* Project manager filter */}
           <div className="relative">
             <select
-              value={managerFilter}
-              onChange={(e) => setManagerFilter(e.target.value)}
-              className={selectClasses}
+              value={filters.manager}
+              onChange={(e) => updateFilter('manager', e.target.value)}
+              className={PILL_SELECT_CLASSES}
             >
               <option value="all">Project manager</option>
               {managers.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2">{DropdownArrow}</span>
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2"><ChevronDownIcon className="h-4 w-4 text-text-secondary pointer-events-none" /></span>
           </div>
 
           {/* Status filter */}
           <div className="relative">
             <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className={selectClasses}
+              value={filters.status}
+              onChange={(e) => updateFilter('status', e.target.value)}
+              className={PILL_SELECT_CLASSES}
             >
               <option value="all">Status</option>
               {statuses.map((s) => (
                 <option key={s} value={s}>{STATUS_LABELS[s] || s}</option>
               ))}
             </select>
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2">{DropdownArrow}</span>
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2"><ChevronDownIcon className="h-4 w-4 text-text-secondary pointer-events-none" /></span>
           </div>
         </div>
       </div>
@@ -153,4 +141,4 @@ export default function ProjectSummaryTable({ projects }: ProjectSummaryTablePro
 
     </div>
   );
-}
+});

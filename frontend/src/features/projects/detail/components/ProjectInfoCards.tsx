@@ -1,16 +1,9 @@
 import type { Project } from '@/lib/api';
+import { formatDate } from '@/lib/constants';
 import { Card } from '@/components/ui';
 
 interface ProjectInfoCardsProps {
   project: Project;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 const INFO_ITEMS = [

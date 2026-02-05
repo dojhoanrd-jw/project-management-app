@@ -1,11 +1,11 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { memo, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon: ReactNode;
   label: string;
 }
 
-export default function IconButton({ icon, label, className = '', ...props }: IconButtonProps) {
+export default memo(function IconButton({ icon, label, className = '', ...props }: IconButtonProps) {
   return (
     <button
       aria-label={label}
@@ -15,4 +15,4 @@ export default function IconButton({ icon, label, className = '', ...props }: Ic
       {icon}
     </button>
   );
-}
+});

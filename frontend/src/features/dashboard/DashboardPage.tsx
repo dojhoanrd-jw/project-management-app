@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
-import { useAlerts } from '@/context/AlertContext';
+import { useState } from 'react';
+import useSWR from 'swr';
+import { DASHBOARD_PERIOD_OPTIONS, PILL_SELECT_CLASSES } from '@/lib/constants';
+import { Skeleton } from '@/components/ui';
 import type {
   OverviewResponse,
   ProgressResponse,
@@ -10,64 +11,24 @@ import type {
   TodayTasksResponse,
   WorkloadResponse,
 } from './dashboard.types';
-import DashboardOverview from './components/DashboardOverview';
-import ProjectSummaryTable from './components/ProjectSummaryTable';
-import OverallProgress from './components/OverallProgress';
-import TodayTasks from './components/TodayTasks';
-import ProjectsWorkload from './components/ProjectsWorkload';
-
-const PERIODS = [
-  { value: '7days', label: 'Last 7 days' },
-  { value: '1month', label: 'Last month' },
-  { value: '3months', label: 'Last 3 months' },
-  { value: '6months', label: 'Last 6 months' },
-  { value: '1year', label: 'Last year' },
-] as const;
-
-interface DashboardData {
-  overview: OverviewResponse;
-  progress: ProgressResponse;
-  projectsSummary: ProjectsSummaryResponse;
-  todayTasks: TodayTasksResponse;
-  workload: WorkloadResponse;
-}
+import {
+  DashboardOverview,
+  ProjectSummaryTable,
+  OverallProgress,
+  TodayTasks,
+  ProjectsWorkload,
+} from './components';
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState('1month');
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { showAlert } = useAlerts();
 
-  useEffect(() => {
-    let cancelled = false;
+  const { data: overview, isLoading: l1 } = useSWR<OverviewResponse>(`/dashboard/overview?period=${period}`);
+  const { data: progress, isLoading: l2 } = useSWR<ProgressResponse>('/dashboard/progress');
+  const { data: projectsSummary, isLoading: l3 } = useSWR<ProjectsSummaryResponse>('/dashboard/projects-summary');
+  const { data: todayTasks, isLoading: l4 } = useSWR<TodayTasksResponse>('/dashboard/today-tasks');
+  const { data: workload, isLoading: l5 } = useSWR<WorkloadResponse>(`/dashboard/workload?period=${period}`);
 
-    async function fetchDashboard() {
-      setLoading(true);
-      try {
-        const [overview, progress, projectsSummary, todayTasks, workload] =
-          await Promise.all([
-            api.getDashboardOverview(period),
-            api.getDashboardProgress(),
-            api.getDashboardProjectsSummary(),
-            api.getDashboardTodayTasks(),
-            api.getDashboardWorkload(period),
-          ]);
-
-        if (!cancelled) {
-          setData({ overview, progress, projectsSummary, todayTasks, workload });
-        }
-      } catch (err) {
-        if (!cancelled) {
-          showAlert('error', err instanceof Error ? err.message : 'Failed to load dashboard');
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    fetchDashboard();
-    return () => { cancelled = true; };
-  }, [period, showAlert]);
+  const loading = l1 || l2 || l3 || l4 || l5;
 
   if (loading) {
     return (
@@ -76,23 +37,21 @@ export default function DashboardPage() {
           <h2 className="text-xl font-bold text-text-primary">Dashboard</h2>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-36 animate-pulse rounded-2xl bg-surface" />
-          ))}
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-36" />)}
         </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="h-80 animate-pulse rounded-2xl bg-surface lg:col-span-2" />
-          <div className="h-80 animate-pulse rounded-2xl bg-surface" />
+          <Skeleton className="h-80 lg:col-span-2" />
+          <Skeleton className="h-80" />
         </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="h-72 animate-pulse rounded-2xl bg-surface lg:col-span-2" />
-          <div className="h-72 animate-pulse rounded-2xl bg-surface" />
+          <Skeleton className="h-72 lg:col-span-2" />
+          <Skeleton className="h-72" />
         </div>
       </div>
     );
   }
 
-  if (!data) return null;
+  if (!overview || !progress || !projectsSummary || !todayTasks || !workload) return null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -102,35 +61,35 @@ export default function DashboardPage() {
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-          className="appearance-none rounded-full bg-white px-4 py-1.5 pr-8 text-sm font-medium text-text-primary shadow-sm outline-none cursor-pointer"
+          className={PILL_SELECT_CLASSES}
         >
-          {PERIODS.map((p) => (
+          {DASHBOARD_PERIOD_OPTIONS.map((p) => (
             <option key={p.value} value={p.value}>{p.label}</option>
           ))}
         </select>
       </div>
 
       {/* Metric cards */}
-      <DashboardOverview data={data.overview} />
+      <DashboardOverview data={overview} />
 
       {/* Project summary table + Overall progress */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <ProjectSummaryTable projects={data.projectsSummary.projectsSummary} />
+          <ProjectSummaryTable projects={projectsSummary.projectsSummary} />
         </div>
         <OverallProgress
-          totalProjects={data.progress.totalProjects}
-          completedPercent={data.progress.completedPercent}
-          health={data.progress.projectsHealth}
+          totalProjects={progress.totalProjects}
+          completedPercent={progress.completedPercent}
+          health={progress.projectsHealth}
         />
       </div>
 
       {/* Today tasks + Projects workload */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <TodayTasks tasks={data.todayTasks.todayTasks} categoryCounts={data.todayTasks.categoryCounts} />
+          <TodayTasks tasks={todayTasks.todayTasks} categoryCounts={todayTasks.categoryCounts} />
         </div>
-        <ProjectsWorkload members={data.workload.members} period={period} onPeriodChange={setPeriod} />
+        <ProjectsWorkload members={workload.members} period={period} onPeriodChange={setPeriod} />
       </div>
     </div>
   );

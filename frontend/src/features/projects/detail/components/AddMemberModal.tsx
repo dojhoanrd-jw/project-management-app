@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { api, type Project, type TeamUser } from '@/lib/api';
-import { ApiError, NetworkError } from '@/lib/errors';
 import { useAlerts } from '@/context/AlertContext';
-import { Button } from '@/components/ui';
-import Modal from '@/components/ui/Modal';
+import { handleApiError } from '@/hooks';
+import { Button, Select, Modal } from '@/components/ui';
 
 interface AddMemberModalProps {
   project: Project;
@@ -63,13 +62,7 @@ export default function AddMemberModal({ project, isOpen, onClose, onUpdated }: 
       onUpdated();
       onClose();
     } catch (err) {
-      if (err instanceof NetworkError) {
-        showError('No connection. Check your internet.');
-      } else if (err instanceof ApiError) {
-        showError(err.message);
-      } else {
-        showError('Unexpected error adding member');
-      }
+      handleApiError(err, showError, 'adding member');
     } finally {
       setLoading(false);
     }
@@ -78,30 +71,23 @@ export default function AddMemberModal({ project, isOpen, onClose, onUpdated }: 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add Team Member" maxWidth="sm">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="member-select" className="text-sm font-medium text-text-primary">
-            Select Member
-          </label>
-          <select
-            id="member-select"
-            value={selectedEmail}
-            onChange={(e) => setSelectedEmail(e.target.value)}
-            disabled={loadingUsers}
-            className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-text-primary outline-none transition-colors focus:border-accent cursor-pointer"
-          >
-            <option value="">
-              {loadingUsers ? 'Loading users...' : 'Select a team member'}
+        <Select
+          id="member-select"
+          label="Select Member"
+          value={selectedEmail}
+          onChange={(e) => setSelectedEmail(e.target.value)}
+          disabled={loadingUsers}
+          placeholder={loadingUsers ? 'Loading users...' : 'Select a team member'}
+        >
+          {availableUsers.map((user) => (
+            <option key={user.email} value={user.email}>
+              {user.name} — {user.role.replace('_', ' ')}
             </option>
-            {availableUsers.map((user) => (
-              <option key={user.email} value={user.email}>
-                {user.name} — {user.role.replace('_', ' ')}
-              </option>
-            ))}
-          </select>
-          {!loadingUsers && availableUsers.length === 0 && (
-            <p className="text-xs text-text-muted">All users are already members of this project.</p>
-          )}
-        </div>
+          ))}
+        </Select>
+        {!loadingUsers && availableUsers.length === 0 && (
+          <p className="text-xs text-text-muted">All users are already members of this project.</p>
+        )}
 
         <div className="mt-2 flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>

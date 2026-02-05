@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { StatusBadge } from '@/components/ui';
+import { CheckIcon } from '@/components/icons';
 import type { TaskItem } from '../dashboard.types';
 
 interface TodayTasksProps {
@@ -16,13 +17,7 @@ const TABS = [
   { key: 'link', label: 'Links' },
 ] as const;
 
-const CheckIcon = (
-  <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-  </svg>
-);
-
-export default function TodayTasks({ tasks, categoryCounts }: TodayTasksProps) {
+export default memo(function TodayTasks({ tasks, categoryCounts }: TodayTasksProps) {
   const [activeTab, setActiveTab] = useState<string>('all');
 
   const filtered = useMemo(() => {
@@ -75,7 +70,7 @@ export default function TodayTasks({ tasks, categoryCounts }: TodayTasksProps) {
                 <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
                   isDone ? 'bg-accent' : 'border-2 border-text-secondary/30'
                 }`}>
-                  {isDone && CheckIcon}
+                  {isDone && <CheckIcon className="h-4 w-4 text-white" />}
                 </span>
                 <p className="truncate text-sm text-text-primary">{task.title}</p>
               </div>
@@ -89,4 +84,4 @@ export default function TodayTasks({ tasks, categoryCounts }: TodayTasksProps) {
       </div>
     </div>
   );
-}
+});

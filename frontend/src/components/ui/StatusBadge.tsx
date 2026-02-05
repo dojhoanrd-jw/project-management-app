@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   active: { bg: 'bg-status-ongoing-bg', text: 'text-status-ongoing', label: 'On going' },
   on_track: { bg: 'bg-status-ongoing-bg', text: 'text-status-ongoing', label: 'On going' },
@@ -18,7 +20,7 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-export default function StatusBadge({ status, className = '' }: StatusBadgeProps) {
+export default memo(function StatusBadge({ status, className = '' }: StatusBadgeProps) {
   const style = STATUS_STYLES[status] || FALLBACK;
 
   return (
@@ -26,4 +28,4 @@ export default function StatusBadge({ status, className = '' }: StatusBadgeProps
       {style.label}
     </span>
   );
-}
+});
